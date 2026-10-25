@@ -73,8 +73,10 @@ function LandingPage() {
           </a>
         </nav>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link to="/dashboard">Sign in</Link>
+          <Button variant="ghost" asChild>
+            <Link to="/" search={{ login: 1 }}>
+              Sign in
+            </Link>
           </Button>
           <Button asChild size="sm">
             <Link to="/dashboard">
