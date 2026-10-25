@@ -23,25 +23,27 @@ const roleLabels: Record<SchoolRole, string> = {
 interface ProfileMenuProps {
   role: SchoolRole;
   onRoleChange: (role: SchoolRole) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function ProfileMenu({
   role,
   onRoleChange,
+  onOpenChange,
   compact = false,
 }: ProfileMenuProps & { compact?: boolean }) {
   const [profileName] = useState("Avery Kim");
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
-        className={`flex items-center gap-2 rounded-xl p-1.5 text-left outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent ${compact ? "justify-center" : ""}`}
+        className={`flex cursor-pointer items-center gap-2 rounded-xl bg-surface/45 p-1.5 text-left outline-none transition-colors hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent ${compact ? "size-11 shrink-0 justify-center p-0" : ""}`}
         aria-label="Open user profile menu"
       >
-        <Avatar className="size-9">
+        <Avatar className={compact ? "size-10" : "size-9"}>
           <AvatarFallback>AK</AvatarFallback>
         </Avatar>
-        <span className={compact ? "sr-only" : "hidden min-w-0 sm:block"}>
+        <span className={compact ? "sr-only" : "min-w-0"}>
           <span className="block text-sm font-semibold">{profileName}</span>
           <span className="block text-xs text-muted-foreground">
             {roleLabels[role]}
@@ -50,7 +52,7 @@ export function ProfileMenu({
         {!compact && (
           <ChevronDown
             size={15}
-            className="hidden text-muted-foreground sm:block"
+            className="text-muted-foreground"
           />
         )}
       </DropdownMenuTrigger>

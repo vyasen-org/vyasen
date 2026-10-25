@@ -1,12 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Palette, PanelLeft } from "lucide-react";
 import {
   handleRovingTabKeyDown,
   scrollKeyboardFocusedTabIntoView,
 } from "@/accessibility/roving-tab-focus";
 
 const settingsLinks = [
-  { label: "Appearance", to: "/settings/appearance" },
-  { label: "Sidebar", to: "/settings/sidebar" },
+  { label: "Appearance", to: "/settings/appearance", icon: Palette },
+  { label: "Sidebar", to: "/settings/sidebar", icon: PanelLeft },
 ] as const;
 
 export function SettingsNavigation() {
@@ -18,9 +19,9 @@ export function SettingsNavigation() {
     <nav
       role="tablist"
       aria-label="Settings pages"
-      className="mt-7 flex gap-1 overflow-x-auto border-b border-border"
+      className="sticky top-0 z-10 mt-7 flex gap-1 overflow-x-auto border-b border-border bg-background"
     >
-      {settingsLinks.map(({ label, to }) => {
+      {settingsLinks.map(({ label, to, icon: Icon }) => {
         const active = pathname === to;
         return (
           <Link
@@ -33,12 +34,13 @@ export function SettingsNavigation() {
             tabIndex={active ? 0 : -1}
             onFocus={scrollKeyboardFocusedTabIntoView}
             onKeyDown={handleRovingTabKeyDown}
-            className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
               active
                 ? "settings-nav-active border-accent text-accent"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
+            <Icon aria-hidden="true" size={16} />
             {label}
           </Link>
         );

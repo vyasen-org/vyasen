@@ -38,7 +38,7 @@ export function SidebarFooter({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-auto shrink-0", className)} {...props} />;
+  return <div className={cn("shrink-0", className)} {...props} />;
 }
 
 export function SidebarGroupLabel({
@@ -88,7 +88,7 @@ export function SidebarMenuButton({
         "flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         active
           ? "bg-accent/15 text-accent"
-          : "text-muted-foreground hover:bg-surface hover:text-foreground",
+          : "bg-surface/45 text-muted-foreground hover:bg-surface hover:text-foreground",
         className,
       )}
       aria-current={active ? "page" : undefined}

@@ -6,15 +6,16 @@ export function SettingsLayout() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const activeTabId = pathname.endsWith("/sidebar")
-    ? "sidebar-settings-tab"
-    : "appearance-settings-tab";
+  const activeTabId = pathname.split("/").pop() + "-settings-tab";
+  // const activeTabId = pathname.endsWith("/sidebar")
+  //   ? "sidebar-settings-tab"
+  //   : "appearance-settings-tab";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto relative">
       <header>
         {/* <p className="text-sm text-muted-foreground">Workspace preferences</p> */}
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-4xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Manage your personal preferences and interface experience.
         </p>

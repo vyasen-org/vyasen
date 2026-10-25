@@ -37,9 +37,39 @@
   --accent-foreground: #111322;
 }
 
+:root[data-color-theme="onyx"] {
+  --accent: #e5e7eb;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="steel"] {
+  --accent: #7f9cb5;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="ocean"] {
+  --accent: #7193ff;
+  --accent-foreground: #111322;
+}
+
 :root[data-color-theme="midnight"] {
   --accent: #6c8cff;
   --accent-foreground: #ffffff;
+}
+
+:root[data-color-theme="brainwave"] {
+  --accent: #1996e8;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="arctic"] {
+  --accent: #93c5fd;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="violet"] {
+  --accent: #a78bfa;
+  --accent-foreground: #111322;
 }
 
 :root[data-color-theme="lilac"] {
@@ -47,8 +77,38 @@
   --accent-foreground: #111322;
 }
 
+:root[data-color-theme="barbie"] {
+  --accent: #ff62b0;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="magenta"] {
+  --accent: #e935c1;
+  --accent-foreground: #111322;
+}
+
 :root[data-color-theme="rose"] {
   --accent: #fb7185;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="signal"] {
+  --accent: #f04462;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="live"] {
+  --accent: #ff234c;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="coral"] {
+  --accent: #ff8a75;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="copper"] {
+  --accent: #d49376;
   --accent-foreground: #111322;
 }
 
@@ -62,8 +122,33 @@
   --accent-foreground: #111322;
 }
 
+:root[data-color-theme="sand"] {
+  --accent: #e5c07b;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="noir"] {
+  --accent: #d4b16a;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="lime"] {
+  --accent: #a3e635;
+  --accent-foreground: #111322;
+}
+
 :root[data-color-theme="grove"] {
   --accent: #4ac28a;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="aurora"] {
+  --accent: #36d8c5;
+  --accent-foreground: #111322;
+}
+
+:root[data-color-theme="mint"] {
+  --accent: #5eead4;
   --accent-foreground: #111322;
 }
 
@@ -140,7 +225,7 @@
   background: transparent;
 }
 
-:root[data-control-roundness] ~ body button,
+:root[data-control-roundness] ~ body button:not([role="switch"]),
 :root[data-control-roundness] ~ body input,
 :root[data-control-roundness] ~ body select,
 :root[data-control-roundness] ~ body textarea,
@@ -190,6 +275,22 @@ body {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+:where(
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  input[type="checkbox"]:not(:disabled),
+  input[type="color"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="range"]:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label:has(input:not(:disabled))
+) {
+  cursor: pointer;
 }
 
 ::selection {

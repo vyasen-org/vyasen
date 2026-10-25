@@ -91,7 +91,7 @@ function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Friday, October 23, 2026
+            {Date.now().toLocaleString()}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Good morning, Avery
