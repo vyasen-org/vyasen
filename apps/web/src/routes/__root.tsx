@@ -11,6 +11,10 @@ import {
   useGoogleNonceQuery,
   useGoogleSignInMutation,
 } from "@/services/auth";
+import {
+  isGoogleOAuthPopup,
+  publishGoogleOAuthPopupResult,
+} from "@/services/auth/google-oauth-popup";
 
 const AuthModal = lazy(() =>
   import("@/components/auth/auth-modal").then((module) => ({
@@ -79,6 +83,28 @@ function RootLayout() {
     loginRequested,
     navigate,
   ]);
+
+  useEffect(() => {
+    const popupId = isGoogleOAuthPopup();
+    if (!popupId) return;
+
+    if (authResult === "complete" && authenticated) {
+      void publishGoogleOAuthPopupResult(popupId, "complete").then(
+        (acknowledged) => {
+          if (acknowledged) window.close();
+        },
+      );
+    } else if (
+      authResult === "google-failed" ||
+      authResult === "link-required"
+    ) {
+      void publishGoogleOAuthPopupResult(popupId, authResult).then(
+        (acknowledged) => {
+          if (acknowledged) window.close();
+        },
+      );
+    }
+  }, [authResult, authenticated]);
 
   useEffect(() => {
     if (loginRequested) {

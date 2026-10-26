@@ -1,19 +1,34 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Palette, PanelLeft } from "lucide-react";
+import { Cog, Palette, PanelLeft, UserRound } from "lucide-react";
 import {
   handleRovingTabKeyDown,
   scrollKeyboardFocusedTabIntoView,
 } from "@/accessibility/roving-tab-focus";
+import { useAuthSessionQuery } from "@/services/auth";
 
-const settingsLinks = [
+const publicSettingsLinks = [
   { label: "Appearance", to: "/settings/appearance", icon: Palette },
   { label: "Sidebar", to: "/settings/sidebar", icon: PanelLeft },
 ] as const;
+const profileSettingsLink = {
+  label: "Profile",
+  to: "/settings/profile",
+  icon: UserRound,
+} as const;
+const accountSettingsLink = {
+  label: "Account",
+  to: "/settings/account",
+  icon: Cog,
+} as const;
 
 export function SettingsNavigation() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+  const sessionQuery = useAuthSessionQuery();
+  const settingsLinks = sessionQuery.data?.user
+    ? [...publicSettingsLinks, profileSettingsLink, accountSettingsLink]
+    : publicSettingsLinks;
 
   return (
     <nav
