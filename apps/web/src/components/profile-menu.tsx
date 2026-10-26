@@ -75,8 +75,8 @@ export function ProfileMenu({
         to="/"
         search={{ login: 1 }}
         aria-label="Log in"
-        className={`flex min-w-0 items-center gap-2 rounded-xl bg-surface/45 p-1.5 text-left text-muted-foreground outline-none transition-colors hover:bg-surface hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent ${
-          compact ? "size-11 shrink-0 justify-center p-0" : "w-full"
+        className={`theme-interactive-glow theme-sidebar-profile flex min-w-0 items-center gap-2 rounded-xl p-1.5 text-left text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          compact ? "size-12 shrink-0 justify-center p-0" : "w-full"
         }`}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
@@ -101,8 +101,8 @@ export function ProfileMenu({
       }}
     >
       <DropdownMenuTrigger
-        className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-surface/45 p-1.5 text-left outline-none transition-colors hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent ${
-          compact ? "size-11 shrink-0 justify-center p-0" : "w-full"
+        className={`theme-interactive-glow theme-sidebar-profile flex min-w-0 cursor-pointer items-center gap-2 rounded-xl p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          compact ? "size-12 shrink-0 justify-center p-0" : "w-full"
         }`}
         aria-label="Open user profile menu"
       >

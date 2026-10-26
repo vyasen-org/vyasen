@@ -83,7 +83,7 @@ export function ProfileSettings() {
   return (
     <div className="space-y-5 py-6">
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.5fr)]">
-        <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <section className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="mb-5">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-semibold">Your public profile</h2>
@@ -97,7 +97,7 @@ export function ProfileSettings() {
             </p>
           </div>
 
-          <div className="flex min-h-[26rem] flex-col items-center rounded-2xl border border-border bg-gradient-to-b from-accent/15 via-background to-background px-5 py-9 text-center">
+          <div className="theme-surface-panel-strong flex min-h-[26rem] flex-col items-center rounded-2xl px-5 py-9 text-center">
             <div className="relative">
               <Avatar className="size-32 border-2 border-accent/40 bg-muted text-4xl">
                 {user.image && <AvatarImage src={user.image} alt="" />}
@@ -113,7 +113,7 @@ export function ProfileSettings() {
             <button
               type="button"
               disabled
-              className="mt-5 inline-flex h-8 items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 text-xs font-medium text-accent opacity-70"
+              className="theme-button-secondary mt-5 inline-flex h-8 items-center gap-2 rounded-lg px-3 text-xs font-medium"
             >
               <Sparkles size={13} />
               Generate avatar
@@ -139,7 +139,7 @@ export function ProfileSettings() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <section className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="border-b border-border pb-5">
             <h2 className="text-sm font-semibold">Personal details</h2>
             <p className="mt-1 text-xs text-muted-foreground">

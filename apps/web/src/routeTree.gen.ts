@@ -16,6 +16,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAccountRouteImport } from './routes/settings.account'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
+import { Route as SettingsNotificationsRouteImport } from './routes/settings.notifications'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsSidebarRouteImport } from './routes/settings.sidebar'
 
@@ -53,6 +54,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsProfileRoute = SettingsProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/sidebar': typeof SettingsSidebarRoute
   '/settings/': typeof SettingsIndexRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/sidebar': typeof SettingsSidebarRoute
   '/settings': typeof SettingsIndexRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/sidebar': typeof SettingsSidebarRoute
   '/settings/': typeof SettingsIndexRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings/account'
     | '/settings/appearance'
+    | '/settings/notifications'
     | '/settings/profile'
     | '/settings/sidebar'
     | '/settings/'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings/account'
     | '/settings/appearance'
+    | '/settings/notifications'
     | '/settings/profile'
     | '/settings/sidebar'
     | '/settings'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/settings/account'
     | '/settings/appearance'
+    | '/settings/notifications'
     | '/settings/profile'
     | '/settings/sidebar'
     | '/settings/'
@@ -185,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/notifications': {
+      id: '/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof SettingsNotificationsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/profile': {
       id: '/settings/profile'
       path: '/profile'
@@ -217,6 +236,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 interface SettingsRouteChildren {
   SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsSidebarRoute: typeof SettingsSidebarRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -225,6 +245,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAccountRoute: SettingsAccountRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsNotificationsRoute: SettingsNotificationsRoute,
   SettingsProfileRoute: SettingsProfileRoute,
   SettingsSidebarRoute: SettingsSidebarRoute,
   SettingsIndexRoute: SettingsIndexRoute,

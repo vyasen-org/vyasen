@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Cog, Palette, PanelLeft, UserRound } from "lucide-react";
+import { Bell, Cog, Palette, PanelLeft, UserRound } from "lucide-react";
 import {
   handleRovingTabKeyDown,
   scrollKeyboardFocusedTabIntoView,
@@ -15,6 +15,11 @@ const profileSettingsLink = {
   to: "/settings/profile",
   icon: UserRound,
 } as const;
+const notificationsSettingsLink = {
+  label: "Notifications",
+  to: "/settings/notifications",
+  icon: Bell,
+} as const;
 const accountSettingsLink = {
   label: "Account",
   to: "/settings/account",
@@ -27,7 +32,12 @@ export function SettingsNavigation() {
   });
   const sessionQuery = useAuthSessionQuery();
   const settingsLinks = sessionQuery.data?.user
-    ? [...publicSettingsLinks, profileSettingsLink, accountSettingsLink]
+    ? [
+        ...publicSettingsLinks,
+        notificationsSettingsLink,
+        profileSettingsLink,
+        accountSettingsLink,
+      ]
     : publicSettingsLinks;
 
   return (
@@ -43,16 +53,15 @@ export function SettingsNavigation() {
             key={to}
             to={to}
             id={`${label.toLowerCase()}-settings-tab`}
+            data-settings-tab={label.toLowerCase()}
             role="tab"
             aria-selected={active}
             aria-controls="settings-content"
             tabIndex={active ? 0 : -1}
             onFocus={scrollKeyboardFocusedTabIntoView}
             onKeyDown={handleRovingTabKeyDown}
-            className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              active
-                ? "settings-nav-active border-accent text-accent"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+            className={`settings-page-tab flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium ${
+              active ? "settings-nav-active" : ""
             }`}
           >
             <Icon aria-hidden="true" size={16} />

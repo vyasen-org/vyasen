@@ -16,7 +16,7 @@ function AccountSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+    <section className="theme-surface-panel rounded-2xl p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <Icon aria-hidden="true" size={18} className="mt-0.5 text-accent" />
         <div className="min-w-0 flex-1">
