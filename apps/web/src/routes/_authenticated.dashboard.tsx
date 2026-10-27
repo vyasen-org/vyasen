@@ -91,7 +91,12 @@ function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            {Date.now().toLocaleString()}
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Good morning, Avery
@@ -112,7 +117,7 @@ function DashboardPage() {
         {metrics.map(({ label, value, change, icon: Icon, positive }) => (
           <article
             key={label}
-            className="rounded-2xl border border-border bg-surface p-5"
+            className="theme-surface-panel rounded-2xl p-5"
           >
             <div className="flex items-center justify-between">
               <span className="grid size-10 place-items-center rounded-xl bg-accent/15 text-accent">
@@ -148,7 +153,7 @@ function DashboardPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.4fr_0.9fr]">
-        <article className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <article className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold">Attendance overview</h2>
@@ -170,8 +175,8 @@ function DashboardPage() {
                   {height}%
                 </span>
                 <div
-                  className={`w-full max-w-12 rounded-t-xl ${
-                    index === 3 ? "bg-accent" : "bg-accent/30"
+                  className={`theme-chart-column ${
+                    index === 3 ? "active" : ""
                   }`}
                   style={{ height: `${height}%` }}
                 />
@@ -189,7 +194,7 @@ function DashboardPage() {
           </div>
         </article>
 
-        <article className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <article className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-base font-semibold">Today&apos;s schedule</h2>

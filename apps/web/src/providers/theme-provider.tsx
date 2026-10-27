@@ -142,7 +142,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.dataset.scrollbarStyle = preferences.scrollbarStyle;
     root.dataset.controlRoundness = preferences.controlRoundness;
     root.dataset.elevatedSurfaces = String(preferences.elevatedSurfaces);
-    root.dataset.pageTabColors = preferences.pageTabColors;
     root.style.setProperty(
       "--reading-temperature",
       `${(preferences.readingTemperature - 50) * 0.32}deg`,

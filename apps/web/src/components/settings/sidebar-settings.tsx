@@ -4,14 +4,15 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  BookOpen,
+  BookOpenCheck,
+  CalendarDays,
   Check,
-  Heart,
+  ClipboardCheck,
+  ClipboardList,
   Info,
   LayoutDashboard,
   Plus,
   Star,
-  UsersRound,
 } from "lucide-react";
 
 import {
@@ -64,10 +65,11 @@ const iconColorModes = [
 ] as const;
 
 const previewItems = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Wishlist", icon: Heart },
-  { label: "Courses", icon: BookOpen },
-  { label: "Students", icon: UsersRound },
+  { label: "Home", icon: LayoutDashboard },
+  { label: "Classes", icon: BookOpenCheck },
+  { label: "Exams", icon: ClipboardCheck },
+  { label: "Assignments", icon: ClipboardList },
+  { label: "Timetable", icon: CalendarDays },
 ] as const;
 
 const positionChoices = [
@@ -313,9 +315,10 @@ export function SidebarSettings() {
                     const previewColor = multicolor
                       ? [
                           "#1683e3",
-                          "#ef476f",
                           "#a855f7",
                           "#22c55e",
+                          "#f39200",
+                          "#ef476f",
                         ][index]
                       : preferences.sidebarIconColorMode === "custom"
                         ? preferences.sidebarIconColor

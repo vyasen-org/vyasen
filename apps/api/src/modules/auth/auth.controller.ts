@@ -92,7 +92,19 @@ export function createAuthController(service: AuthService, config: AppConfig) {
       clearOAuthStateCookie(reply, config);
 
       try {
-        if (request.query.error || !request.query.code || !request.query.state) {
+        if (
+          request.query.error ||
+          !request.query.code ||
+          !request.query.state
+        ) {
+          request.log.warn(
+            {
+              providerError: request.query.error ?? null,
+              hasCode: Boolean(request.query.code),
+              hasState: Boolean(request.query.state),
+            },
+            "Google returned an incomplete authorization response.",
+          );
           return reply.redirect(
             webRedirect(config, returnTo, "google-failed"),
             302,
@@ -105,12 +117,20 @@ export function createAuthController(service: AuthService, config: AppConfig) {
           sessionMetadata(request),
         );
         setSessionCookie(reply, config, session.token);
-        return reply.redirect(webRedirect(config, session.returnTo, "complete"), 302);
+        return reply.redirect(
+          webRedirect(config, session.returnTo, "complete"),
+          302,
+        );
       } catch (error) {
         if (error instanceof AppError && error.statusCode >= 500) {
           request.log.error(
             { errorCode: error.code },
             "Google sign-in callback failed.",
+          );
+        } else if (error instanceof AppError) {
+          request.log.warn(
+            { errorCode: error.code },
+            "Google sign-in callback was rejected.",
           );
         } else if (!(error instanceof AppError)) {
           request.log.error(
@@ -162,9 +182,7 @@ export function createAuthController(service: AuthService, config: AppConfig) {
       request: RequestData<{ authContext: FastifyRequest["authContext"] }>,
       reply: FastifyReply,
     ) {
-      return reply
-        .code(200)
-        .send({ user: requireAuthContext(request).user });
+      return reply.code(200).send({ user: requireAuthContext(request).user });
     },
 
     async listSessions(
@@ -294,7 +312,11 @@ function clearOAuthStateCookie(reply: FastifyReply, config: AppConfig) {
   });
 }
 
-function webRedirect(config: AppConfig, returnTo: string, authResult: string): string {
+function webRedirect(
+  config: AppConfig,
+  returnTo: string,
+  authResult: string,
+): string {
   const origin = config.webOrigins[0];
   const url = new URL(returnTo, origin);
   url.searchParams.set("auth", authResult);

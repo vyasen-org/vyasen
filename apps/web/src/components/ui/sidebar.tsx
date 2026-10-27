@@ -85,10 +85,8 @@ export function SidebarMenuButton({
   return (
     <Component
       className={cn(
-        "flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-        active
-          ? "bg-accent/15 text-accent"
-          : "bg-surface/45 text-muted-foreground hover:bg-surface hover:text-foreground",
+        "theme-interactive-glow theme-tab-surface flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+        active && "active",
         className,
       )}
       aria-current={active ? "page" : undefined}

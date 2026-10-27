@@ -22,8 +22,8 @@
   --border: #2b3040;
   --accent: #818cf8;
   --accent-foreground: #111322;
-  --page-tab-color: #fb7185;
   --control-radius: 0.75rem;
+  --settings-tab-divider: #2b3040;
 }
 
 :root[data-theme="light"] {
@@ -35,6 +35,7 @@
   --muted-foreground: #737b91;
   --border: #e2e6ef;
   --accent-foreground: #111322;
+  --settings-tab-divider: #e2e6ef;
 }
 
 :root[data-color-theme="onyx"] {
@@ -157,9 +158,38 @@
   --accent-foreground: #111322;
 }
 
-:root[data-page-tab-colors="independent"] ~ body .settings-nav-active {
-  color: var(--page-tab-color);
-  border-color: var(--page-tab-color);
+:root[data-theme="dark"] {
+  --background: color-mix(in srgb, #10131d 96%, var(--accent) 4%);
+  --surface: color-mix(in srgb, #191d2a 96%, var(--accent) 4%);
+  --muted: color-mix(in srgb, #252a3a 96%, var(--accent) 4%);
+  --border: color-mix(in srgb, #2b3040 92%, var(--accent) 8%);
+}
+
+:root[data-theme="light"] {
+  --background: color-mix(in srgb, #f7f8fc 98%, var(--accent) 2%);
+  --surface: color-mix(in srgb, #ffffff 98%, var(--accent) 2%);
+  --muted: color-mix(in srgb, #edf0f7 97%, var(--accent) 3%);
+  --border: color-mix(in srgb, #e2e6ef 94%, var(--accent) 6%);
+}
+
+:root[data-theme="dark"] {
+  --settings-tab-appearance: #fb923c;
+  --settings-tab-sidebar: #a78bfa;
+  --settings-tab-learning: #4ade80;
+  --settings-tab-notifications: #facc15;
+  --settings-tab-privacy: #38bdf8;
+  --settings-tab-profile: #60a5fa;
+  --settings-tab-account: #cbd5e1;
+}
+
+:root[data-theme="light"] {
+  --settings-tab-appearance: #c2410c;
+  --settings-tab-sidebar: #7c3aed;
+  --settings-tab-learning: #15803d;
+  --settings-tab-notifications: #a16207;
+  --settings-tab-privacy: #0369a1;
+  --settings-tab-profile: #2563eb;
+  --settings-tab-account: #475569;
 }
 
 :root[data-control-roundness="sharp"] {
@@ -295,4 +325,529 @@ a {
 
 ::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+@layer components {
+  .theme-interactive-glow {
+    --interactive-glow-color: var(--accent);
+    transition:
+      background 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      filter 180ms ease,
+      color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .theme-interactive-glow:not(:disabled):not([aria-disabled="true"]):is(
+      :hover,
+      :focus-visible
+    ) {
+    box-shadow:
+      0 0 0 1px
+        color-mix(in srgb, var(--interactive-glow-color) 22%, transparent),
+      0 0 18px
+        color-mix(in srgb, var(--interactive-glow-color) 26%, transparent);
+    filter: brightness(1.06);
+  }
+
+  .theme-interactive-glow[aria-disabled="true"]:is(:hover, :focus-visible) {
+    box-shadow: none;
+    filter: none;
+  }
+
+  .theme-interactive-glow.sidebar-toggle-button:not(:disabled):not(
+      [aria-disabled="true"]
+    ):is(:hover, :focus-visible) {
+    box-shadow: none;
+    filter: none;
+  }
+
+  .sidebar-toggle-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .theme-switch {
+    border-color: var(--foreground);
+    background-color: color-mix(
+      in srgb,
+      var(--foreground) 55%,
+      var(--background)
+    );
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--foreground) 8%, transparent);
+    transition:
+      background-color 200ms ease-in-out,
+      border-color 200ms ease-in-out,
+      box-shadow 200ms ease-in-out;
+  }
+
+  .theme-switch-thumb {
+    background-color: var(--foreground);
+    transition:
+      transform 200ms ease-in-out,
+      background-color 200ms ease-in-out;
+    will-change: transform;
+  }
+
+  .theme-switch[aria-checked="true"] {
+    border-color: var(--accent-foreground);
+    background-color: var(--accent);
+  }
+
+  .theme-switch[aria-checked="true"] .theme-switch-thumb {
+    background-color: var(--accent-foreground);
+  }
+
+  .theme-switch:not(:disabled):hover {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent),
+      0 0 12px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .theme-switch:disabled {
+    border-color: color-mix(in srgb, #9ca3af 35%, transparent);
+    background-color: color-mix(in srgb, var(--foreground) 30%, transparent);
+    cursor: not-allowed;
+  }
+
+  .theme-switch[aria-checked="true"]:disabled {
+    background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .theme-switch:disabled .theme-switch-thumb {
+    background-color: #9ca3af;
+  }
+
+  .theme-sidebar-surface {
+    background:
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--accent) 3%, transparent) 0%,
+        transparent 42%,
+        color-mix(in srgb, var(--accent) 1%, transparent) 100%
+      ),
+      var(--background);
+  }
+
+  .theme-sidebar-profile {
+    border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+    background: linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--accent) 9%, var(--surface)) 0%,
+      color-mix(in srgb, var(--surface) 96%, var(--background)) 100%
+    );
+    transition:
+      border-color 180ms ease,
+      background 180ms ease,
+      box-shadow 180ms ease,
+      color 180ms ease;
+  }
+
+  .theme-sidebar-profile:hover {
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    background: linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--accent) 13%, var(--surface)) 0%,
+      color-mix(in srgb, var(--surface) 94%, var(--background)) 100%
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 26%, transparent);
+    color: var(--foreground);
+  }
+
+  .theme-button-primary {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 92%, white 8%) 0%,
+      color-mix(in srgb, var(--accent) 82%, white 18%) 20%,
+      var(--accent) 46%,
+      color-mix(in srgb, var(--accent) 72%, #0b1020 28%) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 18%),
+      0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+    transition:
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
+  }
+
+  .theme-button-primary:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 20%),
+      0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+    filter: brightness(1.08);
+  }
+
+  .theme-button-primary:active {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 12%),
+      0 6px 18px color-mix(in srgb, var(--accent) 12%, transparent);
+    filter: brightness(0.9);
+    transform: translateY(0.5px);
+  }
+
+  .theme-button-primary:disabled {
+    background: linear-gradient(
+      90deg,
+      rgb(148 163 184 / 62%) 0%,
+      rgb(148 163 184 / 52%) 100%
+    );
+    border-color: rgb(148 163 184 / 30%);
+    box-shadow: none;
+    filter: grayscale(0.7);
+  }
+
+  .theme-button-secondary {
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 22%, transparent) 100%
+    );
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+    transition:
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .theme-button-secondary:hover {
+    border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 10%),
+      0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+    filter: brightness(1.08);
+  }
+
+  .theme-button-secondary:active {
+    transform: translateY(0.5px);
+    filter: brightness(0.9);
+  }
+
+  .theme-button-secondary:disabled {
+    background: rgb(148 163 184 / 12%);
+    border-color: rgb(148 163 184 / 20%);
+    box-shadow: none;
+    color: color-mix(in srgb, var(--muted-foreground) 55%, var(--background));
+  }
+
+  .theme-button-destructive {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--accent) 72%, var(--foreground));
+    border-left-width: 3px;
+    background:
+      repeating-linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 22%, transparent) 0 5px,
+        transparent 5px 11px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--accent) 36%, var(--background)) 0%,
+        color-mix(in srgb, var(--accent) 20%, var(--background)) 100%
+      );
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+    transition:
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
+  }
+
+  .theme-button-destructive:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 10%),
+      0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+    filter: brightness(1.08);
+  }
+
+  .theme-button-destructive:active {
+    filter: brightness(0.9);
+    transform: translateY(0.5px);
+  }
+
+  .theme-button-ghost {
+    border: 1px solid transparent;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 3%, transparent),
+      color-mix(in srgb, var(--accent) 7%, transparent)
+    );
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      color 180ms ease;
+  }
+
+  .theme-button-ghost:hover {
+    border-color: color-mix(in srgb, var(--accent) 16%, transparent);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      color-mix(in srgb, var(--accent) 15%, transparent)
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+  }
+
+  .theme-button-ghost:active {
+    filter: brightness(0.9);
+    transform: translateY(0.5px);
+  }
+
+  .theme-button-primary:disabled,
+  .theme-button-secondary:disabled,
+  .theme-button-destructive:disabled,
+  .theme-button-ghost:disabled {
+    border-color: rgb(148 163 184 / 22%);
+    background: rgb(148 163 184 / 12%);
+    box-shadow: none;
+    color: color-mix(in srgb, var(--muted-foreground) 60%, var(--background));
+    filter: grayscale(0.8);
+  }
+
+  .theme-choice-card {
+    border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--accent) 5%, transparent),
+        color-mix(in srgb, var(--accent) 9%, transparent)
+      ),
+      var(--background);
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      filter 180ms ease;
+  }
+
+  .theme-choice-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 10%, transparent);
+    filter: brightness(1.05);
+  }
+
+  .theme-choice-card.active {
+    border-color: color-mix(in srgb, var(--accent) 56%, var(--border));
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--accent) 20%, var(--surface)),
+        color-mix(in srgb, var(--accent) 28%, var(--surface))
+      ),
+      var(--surface);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  }
+
+  .theme-surface-panel {
+    position: relative;
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+        color-mix(in srgb, var(--surface) 82%, transparent) 38%,
+        color-mix(in srgb, var(--accent) 4%, transparent) 100%
+      ),
+      var(--surface);
+    border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+  }
+
+  .theme-surface-panel-strong {
+    position: relative;
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+        color-mix(in srgb, var(--surface) 80%, transparent) 42%,
+        color-mix(in srgb, var(--accent) 8%, transparent) 100%
+      ),
+      var(--surface);
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  }
+
+  .theme-tab-surface {
+    position: relative;
+    border: 1px solid transparent;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 3%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 6%, transparent) 100%
+    );
+    color: color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground) 32%);
+    transition:
+      background 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease,
+      color 180ms ease;
+  }
+
+  .theme-tab-surface:hover {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 11%, transparent) 100%
+    );
+    border-color: color-mix(in srgb, var(--accent) 10%, transparent);
+    filter: brightness(1.1);
+  }
+
+  .theme-tab-surface.active {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 12%, var(--surface)) 0%,
+      color-mix(in srgb, var(--accent) 19%, var(--surface)) 48%,
+      color-mix(in srgb, var(--accent) 14%, var(--surface)) 100%
+    );
+    border-color: color-mix(in srgb, var(--accent) 14%, var(--border));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 5%),
+      0 3px 12px color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  .theme-tab-surface.active:hover {
+    filter: brightness(1.1);
+  }
+
+  .settings-page-tab {
+    position: relative;
+    min-height: 3rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted-foreground);
+    --settings-tab-item-color: var(--accent);
+    transition:
+      border-color 180ms ease,
+      color 180ms ease;
+  }
+
+  .settings-page-tablist {
+    border-color: var(--settings-tab-divider);
+  }
+
+  .settings-page-tab[data-settings-tab="appearance"] {
+    --settings-tab-item-color: var(--settings-tab-appearance);
+  }
+
+  .settings-page-tab[data-settings-tab="sidebar"] {
+    --settings-tab-item-color: var(--settings-tab-sidebar);
+  }
+
+  .settings-page-tab[data-settings-tab="learning"] {
+    --settings-tab-item-color: var(--settings-tab-learning);
+  }
+
+  .settings-page-tab[data-settings-tab="notifications"] {
+    --settings-tab-item-color: var(--settings-tab-notifications);
+  }
+
+  .settings-page-tab[data-settings-tab="privacy"] {
+    --settings-tab-item-color: var(--settings-tab-privacy);
+  }
+
+  .settings-page-tab[data-settings-tab="profile"] {
+    --settings-tab-item-color: var(--settings-tab-profile);
+  }
+
+  .settings-page-tab[data-settings-tab="account"] {
+    --settings-tab-item-color: var(--settings-tab-account);
+  }
+
+  .settings-page-tab:hover {
+    color: color-mix(
+      in srgb,
+      var(--foreground) 74%,
+      var(--settings-tab-item-color) 26%
+    );
+  }
+
+  .settings-page-tab.settings-nav-active:hover {
+    filter: brightness(1.1);
+  }
+
+  .settings-page-tab:focus-visible {
+    z-index: 1;
+    border-radius: 0.35rem 0.35rem 0 0;
+    outline: 2px solid var(--settings-tab-item-color);
+    outline-offset: -2px;
+  }
+
+  .settings-page-tab.settings-nav-active {
+    border-bottom-color: var(--settings-tab-item-color);
+    color: var(--settings-tab-item-color);
+    font-weight: 500;
+  }
+
+  .theme-chart-column {
+    display: block;
+    width: 100%;
+    max-width: 3rem;
+    border-radius: 0.8rem 0.8rem 0 0;
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    background: linear-gradient(
+      180deg,
+      var(--accent) 0%,
+      color-mix(in srgb, var(--accent) 20%, transparent) 100%
+    );
+    opacity: 1;
+    transition:
+      opacity 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .theme-chart-column.active {
+    opacity: 1;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 85%, white 15%) 0%,
+      color-mix(in srgb, var(--accent) 25%, transparent) 100%
+    );
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 24%, transparent);
+    filter: brightness(1.15);
+  }
+
+  .theme-chart-column:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent);
+    filter: brightness(1.15);
+  }
+
+  .theme-chart-canvas:has(.theme-chart-column:hover)
+    .theme-chart-column:not(:hover) {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-sidebar-profile,
+  .theme-interactive-glow,
+  .theme-button-primary,
+  .theme-button-secondary,
+  .theme-button-ghost,
+  .theme-button-destructive,
+  .theme-tab-surface,
+  .theme-chart-column {
+    transition-duration: 0.01ms;
+  }
 }

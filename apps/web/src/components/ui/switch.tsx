@@ -24,11 +24,9 @@ export function Switch({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
+      data-checked={checked}
       className={cn(
-        "relative inline-flex h-6 w-12 shrink-0 cursor-pointer items-center rounded-full bg-muted ring-1 ring-inset ring-black/10 dark:ring-white/20 transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        checked && "bg-accent ring-transparent dark:ring-transparent",
+        "theme-switch relative inline-flex h-6 w-12 shrink-0 cursor-pointer items-center rounded-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed",
         className,
       )}
       {...props}
@@ -36,8 +34,8 @@ export function Switch({
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm ring-1 ring-black/10 dark:ring-transparent transition-transform duration-200 ease-in-out",
-          checked && "translate-x-6",
+          "theme-switch-thumb pointer-events-none absolute left-0.5 top-1/2 size-5 -translate-y-1/2 rounded-full shadow-sm transition-transform duration-200 ease-in-out",
+          checked && "translate-x-[1.375rem]",
         )}
       />
     </button>

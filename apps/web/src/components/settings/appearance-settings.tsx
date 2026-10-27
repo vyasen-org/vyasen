@@ -695,15 +695,6 @@ export function AppearanceSettings() {
             { value: "windows", label: "Control (Ctrl)" },
           ]}
         />
-        <SelectControl
-          label="Page tab colors"
-          value={preferences.pageTabColors}
-          onChange={(value) => updatePreference("pageTabColors", value)}
-          options={[
-            { value: "sidebar", label: "Follow the sidebar" },
-            { value: "independent", label: "Independent tab style" },
-          ]}
-        />
       </SettingsSection>
 
       <SettingsSection title="Screen">

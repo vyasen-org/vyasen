@@ -1,12 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ArrowLeft,
-  ArrowRight,
-  GraduationCap,
-  Mail,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, GraduationCap, Mail, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -22,15 +16,21 @@ import {
   useRequestEmailCodeMutation,
   useVerifyEmailCodeMutation,
 } from "@/services/auth";
+import {
+  acknowledgeGoogleOAuthPopup,
+  createGoogleOAuthPopupId,
+  googleOAuthPopupChannelName,
+  googleOAuthPopupMessageType,
+  googleOAuthPopupName,
+  googleOAuthPopupStorageKey,
+} from "@/services/auth/google-oauth-popup";
 
 const emailSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
 });
 
 const codeSchema = z.object({
-  code: z
-    .string()
-    .regex(/^\d{6}$/, "Enter the 6-digit code to continue."),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code to continue."),
 });
 
 type EmailValues = z.infer<typeof emailSchema>;
@@ -93,6 +93,10 @@ export function AuthModal({
   const [googleOAuthPending, setGoogleOAuthPending] = useState(false);
   const googlePopupRef = useRef<Window | null>(null);
   const googlePopupPollRef = useRef<number | null>(null);
+  const googlePopupMessageRef = useRef<
+    ((event: MessageEvent<unknown>) => void) | null
+  >(null);
+  const googlePopupChannelRef = useRef<BroadcastChannel | null>(null);
   const queryClient = useQueryClient();
   const emailCodeMutation = useRequestEmailCodeMutation();
   const verifyEmailMutation = useVerifyEmailCodeMutation();
@@ -125,6 +129,10 @@ export function AuthModal({
       if (googlePopupPollRef.current !== null) {
         window.clearInterval(googlePopupPollRef.current);
       }
+      if (googlePopupMessageRef.current) {
+        window.removeEventListener("message", googlePopupMessageRef.current);
+      }
+      googlePopupChannelRef.current?.close();
       googlePopupRef.current?.close();
     },
     [],
@@ -213,6 +221,12 @@ export function AuthModal({
       window.clearInterval(googlePopupPollRef.current);
       googlePopupPollRef.current = null;
     }
+    if (googlePopupMessageRef.current) {
+      window.removeEventListener("message", googlePopupMessageRef.current);
+      googlePopupMessageRef.current = null;
+    }
+    googlePopupChannelRef.current?.close();
+    googlePopupChannelRef.current = null;
     googlePopupRef.current?.close();
     googlePopupRef.current = null;
     setGoogleOAuthPending(false);
@@ -251,7 +265,7 @@ export function AuthModal({
         onError: (error) => {
           setFeedback(readableError(error));
           setResendSeconds(
-            error instanceof ApiError ? error.retryAfterSeconds ?? 0 : 0,
+            error instanceof ApiError ? (error.retryAfterSeconds ?? 0) : 0,
           );
         },
       },
@@ -274,7 +288,7 @@ export function AuthModal({
         onError: (error) => {
           setFeedback(readableError(error));
           setResendSeconds(
-            error instanceof ApiError ? error.retryAfterSeconds ?? 0 : 0,
+            error instanceof ApiError ? (error.retryAfterSeconds ?? 0) : 0,
           );
         },
       },
@@ -296,14 +310,37 @@ export function AuthModal({
     );
   }
 
+  function finishGoogleOAuth(
+    popup: Window,
+    session: Awaited<ReturnType<typeof getAuthSession>>,
+  ) {
+    if (!session?.user || googlePopupRef.current !== popup) return false;
+    if (googlePopupPollRef.current !== null) {
+      window.clearInterval(googlePopupPollRef.current);
+      googlePopupPollRef.current = null;
+    }
+    if (googlePopupMessageRef.current) {
+      window.removeEventListener("message", googlePopupMessageRef.current);
+      googlePopupMessageRef.current = null;
+    }
+    googlePopupChannelRef.current?.close();
+    googlePopupChannelRef.current = null;
+    googlePopupRef.current = null;
+    popup.close();
+    queryClient.setQueryData(authKeys.session(), session);
+    handleOpenChange(false);
+    return true;
+  }
+
   function continueWithGoogle() {
     if (!googleReady) return;
+    const popupId = createGoogleOAuthPopupId();
     const returnTo =
       window.location.pathname + window.location.search + window.location.hash;
     const parameters = new URLSearchParams({ returnTo });
     const popup = window.open(
-      `${apiBaseUrl}/api/v1/auth/google/authorize?${parameters.toString()}`,
-      "school-sms-google-sign-in",
+      "",
+      googleOAuthPopupName,
       "popup,width=500,height=640",
     );
     if (!popup) {
@@ -313,93 +350,139 @@ export function AuthModal({
       return;
     }
 
-    popup.opener = null;
+    try {
+      popup.sessionStorage.setItem(googleOAuthPopupStorageKey, popupId);
+    } catch {
+      popup.close();
+      setFeedback(
+        "Unable to prepare the Google sign-in window. Please try again.",
+      );
+      return;
+    }
+
     googlePopupRef.current = popup;
     setGoogleOAuthPending(true);
     setFeedback("");
 
     const startedAt = Date.now();
     let checkingSession = false;
-    googlePopupPollRef.current = window.setInterval(async () => {
-      if (popup.closed) {
+    const finishFromMessage = (event: MessageEvent<unknown>) => {
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      if (
+        !("type" in data) ||
+        !("id" in data) ||
+        data.type !== googleOAuthPopupMessageType ||
+        data.id !== popupId
+      ) {
+        return;
+      }
+      acknowledgeGoogleOAuthPopup(
+        googlePopupChannelRef.current,
+        event,
+        popupId,
+      );
+
+      if (
+        "result" in data &&
+        (data.result === "google-failed" || data.result === "link-required")
+      ) {
         if (googlePopupPollRef.current !== null) {
           window.clearInterval(googlePopupPollRef.current);
           googlePopupPollRef.current = null;
         }
-        googlePopupRef.current = null;
-        setGoogleOAuthPending(false);
-        setFeedback("Google sign-in was closed before it finished.");
-        return;
-      }
-
-      if (Date.now() - startedAt > 5 * 60 * 1000) {
-        if (googlePopupPollRef.current !== null) {
-          window.clearInterval(googlePopupPollRef.current);
-          googlePopupPollRef.current = null;
+        if (googlePopupMessageRef.current) {
+          window.removeEventListener("message", googlePopupMessageRef.current);
+          googlePopupMessageRef.current = null;
         }
-        googlePopupRef.current = null;
-        popup.close();
-        setGoogleOAuthPending(false);
-        setFeedback("Google sign-in timed out. Please try again.");
-        return;
-      }
-
-      if (checkingSession) return;
-
-      let popupOrigin: string;
-      try {
-        popupOrigin = popup.location.origin;
-      } catch {
-        return;
-      }
-      if (popupOrigin !== window.location.origin) return;
-
-      const popupSearch = new URLSearchParams(popup.location.search);
-      const authResult = popupSearch.get("auth");
-      if (authResult === "google-failed" || authResult === "link-required") {
-        if (googlePopupPollRef.current !== null) {
-          window.clearInterval(googlePopupPollRef.current);
-          googlePopupPollRef.current = null;
-        }
+        googlePopupChannelRef.current?.close();
+        googlePopupChannelRef.current = null;
         googlePopupRef.current = null;
         popup.close();
         setGoogleOAuthPending(false);
         setFeedback(
-          authResult === "link-required"
+          data.result === "link-required"
             ? "This Google account matches an existing sign-in. Sign in with that method before linking Google."
             : "Google sign-in could not be completed. Please try again.",
         );
         return;
       }
 
+      if (!("result" in data) || data.result !== "complete" || checkingSession)
+        return;
       checkingSession = true;
-      try {
-        const session = await getAuthSession();
-        if (googlePopupRef.current !== popup) return;
-        if (session?.user) {
+      void getAuthSession()
+        .then((session) => {
+          if (!finishGoogleOAuth(popup, session)) {
+            throw new ApiError(
+              502,
+              "oauth_session_unavailable",
+              "Google sign-in returned, but this tab could not confirm the session.",
+            );
+          }
+        })
+        .catch((error: unknown) => {
+          if (googlePopupRef.current !== popup) return;
           if (googlePopupPollRef.current !== null) {
             window.clearInterval(googlePopupPollRef.current);
             googlePopupPollRef.current = null;
           }
+          if (googlePopupMessageRef.current) {
+            window.removeEventListener(
+              "message",
+              googlePopupMessageRef.current,
+            );
+            googlePopupMessageRef.current = null;
+          }
+          googlePopupChannelRef.current?.close();
+          googlePopupChannelRef.current = null;
           googlePopupRef.current = null;
           popup.close();
-          queryClient.setQueryData(authKeys.session(), session);
-          handleOpenChange(false);
-        }
-      } catch (error) {
-        if (googlePopupRef.current !== popup) return;
+          setGoogleOAuthPending(false);
+          setFeedback(readableError(error));
+        })
+        .finally(() => {
+          checkingSession = false;
+        });
+    };
+
+    const handlePopupMessage = (event: MessageEvent<unknown>) => {
+      if (event.origin !== window.location.origin || event.source !== popup) {
+        return;
+      }
+      finishFromMessage(event);
+    };
+    googlePopupMessageRef.current = handlePopupMessage;
+    window.addEventListener("message", handlePopupMessage);
+
+    if (typeof BroadcastChannel === "function") {
+      const channel = new BroadcastChannel(googleOAuthPopupChannelName);
+      channel.onmessage = finishFromMessage;
+      googlePopupChannelRef.current = channel;
+    }
+
+    googlePopupPollRef.current = window.setInterval(() => {
+      if (googlePopupRef.current !== popup) return;
+      if (Date.now() - startedAt > 9 * 60 * 1000) {
         if (googlePopupPollRef.current !== null) {
           window.clearInterval(googlePopupPollRef.current);
           googlePopupPollRef.current = null;
         }
+        if (googlePopupMessageRef.current) {
+          window.removeEventListener("message", googlePopupMessageRef.current);
+          googlePopupMessageRef.current = null;
+        }
+        googlePopupChannelRef.current?.close();
+        googlePopupChannelRef.current = null;
         googlePopupRef.current = null;
         popup.close();
         setGoogleOAuthPending(false);
-        setFeedback(readableError(error));
-      } finally {
-        checkingSession = false;
+        setFeedback("Google sign-in timed out. Please try again.");
+        return;
       }
-    }, 500);
+    }, 1000);
+
+    popup.location.href = `${apiBaseUrl}/api/v1/auth/google/authorize?${parameters.toString()}`;
   }
 
   const busy =
@@ -452,7 +535,9 @@ export function AuthModal({
                   variant="outline"
                   className="h-11 w-full border-border bg-surface font-medium hover:bg-muted"
                   disabled={!googleReady || busy || googleOAuthPending}
-                  aria-busy={googleSignInMutation.isPending || googleOAuthPending}
+                  aria-busy={
+                    googleSignInMutation.isPending || googleOAuthPending
+                  }
                   onClick={continueWithGoogle}
                 >
                   <GoogleMark />
@@ -610,7 +695,10 @@ export function AuthModal({
                   />
                 </div>
                 {codeForm.formState.errors.code && (
-                  <p role="alert" className="mt-2 text-center text-xs text-rose-400">
+                  <p
+                    role="alert"
+                    className="mt-2 text-center text-xs text-rose-400"
+                  >
                     {codeForm.formState.errors.code.message}
                   </p>
                 )}
@@ -643,7 +731,9 @@ export function AuthModal({
                       disabled={emailCodeMutation.isPending}
                       className="font-medium text-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      {emailCodeMutation.isPending ? "Sending..." : "Resend code"}
+                      {emailCodeMutation.isPending
+                        ? "Sending..."
+                        : "Resend code"}
                     </button>
                   </>
                 )}

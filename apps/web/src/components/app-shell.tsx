@@ -129,7 +129,7 @@ function SidebarContents({
                   : "Collapse sidebar"
             }
             aria-expanded={hiddenMode ? true : !collapsed}
-            className={`size-8 shrink-0 text-muted-foreground ${
+            className={`sidebar-toggle-button size-8 shrink-0 text-muted-foreground ${
               collapsed && !hiddenMode
                 ? "absolute right-2 hidden group-hover/sidebar:inline-flex group-focus-within/sidebar:inline-flex"
                 : ""
@@ -157,7 +157,7 @@ function SidebarContents({
         className={
           horizontal
             ? "flex min-w-0 flex-1 flex-row items-center overflow-x-auto overflow-y-hidden px-1"
-            : "flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-1"
+            : "flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-2"
         }
       >
         {!collapsed && !horizontal && (
@@ -185,30 +185,31 @@ function SidebarContents({
                 : false;
               const iconStyle = {
                 color:
-                  isActive
-                    ? undefined
-                    : preferences.sidebarIconStyle === "multicolor"
-                      ? [
-                          "#60a5fa",
-                          "#c084fc",
-                          "#34d399",
-                          "#fbbf24",
-                          "#fb7185",
-                          "#22d3ee",
-                          "#a3e635",
-                        ][index % 7]
-                      : preferences.sidebarIconColorMode === "custom"
-                        ? preferences.sidebarIconColor
-                        : undefined,
+                  preferences.sidebarIconStyle === "multicolor"
+                    ? [
+                        "#60a5fa",
+                        "#c084fc",
+                        "#34d399",
+                        "#fbbf24",
+                        "#fb7185",
+                        "#22d3ee",
+                        "#a3e635",
+                      ][index % 7]
+                    : preferences.sidebarIconColorMode === "custom"
+                      ? preferences.sidebarIconColor
+                      : undefined,
               } satisfies CSSProperties;
               const iconClassName =
-                preferences.sidebarIconStyle === "multicolor"
-                  ? "size-5 shrink-0"
-                  : preferences.sidebarIconColorMode === "theme" || isActive
-                    ? "size-5 shrink-0 text-accent"
-                    : preferences.sidebarIconColorMode === "adaptive"
-                      ? "size-5 shrink-0 text-muted-foreground"
-                      : "size-5 shrink-0";
+                `shrink-0 ${
+                  collapsed ? "size-6" : "size-5"
+                } ${
+                  preferences.sidebarIconStyle === "multicolor" ||
+                  preferences.sidebarIconColorMode === "custom"
+                    ? ""
+                    : preferences.sidebarIconColorMode === "theme" || isActive
+                      ? "text-accent"
+                      : "text-muted-foreground"
+                }`;
               const labelClass = horizontal
                 ? "inline"
                 : collapsed
@@ -217,14 +218,12 @@ function SidebarContents({
               const buttonClass = horizontal
                 ? "w-auto shrink-0 px-3"
                 : collapsed
-                  ? "justify-center px-0"
+                  ? "size-12 justify-center px-0"
                   : "min-w-0 overflow-hidden max-sm:justify-center max-sm:px-0";
               const elevatedMenuClassName = preferences.elevatedSidebarMenus
-                ? `ring-1 ring-inset ${
-                    isActive
-                      ? "ring-accent/30 shadow-md shadow-accent/10"
-                      : "ring-foreground/10 shadow-sm shadow-black/10 hover:-translate-y-px hover:ring-accent/25 hover:shadow-md hover:shadow-black/15"
-                  }`
+                ? isActive
+                  ? "shadow-sm shadow-accent/10"
+                  : "shadow-sm shadow-black/5 hover:shadow-md hover:shadow-accent/10"
                 : "";
               const shortcut = preferences.showKeyboardShortcuts
                 ? item.shortcut
@@ -313,7 +312,7 @@ function SidebarContents({
         className={`flex gap-2 ${
           horizontal
             ? "ml-auto h-16 shrink-0 flex-row items-center px-2 sm:px-4"
-            : `mt-auto w-full shrink-0 flex-col px-1 pb-2 pt-2 ${
+            : `mt-auto w-full shrink-0 flex-col px-2 pb-2 pt-2 ${
                 collapsed ? "items-center" : "items-stretch"
               }`
         }`}
@@ -332,15 +331,11 @@ function SidebarContents({
               to="/settings/appearance"
               aria-label="Settings"
               onClick={onNavigate}
-              className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              className={`theme-interactive-glow theme-tab-surface flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 collapsed || horizontal
-                  ? "size-11 shrink-0 justify-center p-0"
+                  ? "size-12 shrink-0 justify-center p-0"
                   : "min-w-0 overflow-hidden"
-              } ${
-                pathname.startsWith("/settings")
-                  ? "bg-accent/15 text-accent"
-                  : "bg-surface/45 text-muted-foreground"
-              }`}
+              } ${pathname.startsWith("/settings") ? "active" : ""}`}
             >
               <Settings className="size-5 shrink-0" />
               {!collapsed && !horizontal && (
@@ -524,12 +519,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           ? "-translate-x-full"
           : "translate-x-full"
         : "";
-  const dockClass = `group/sidebar z-40 flex fixed ${dockBase} border-border bg-background/95 transition-transform duration-300 ease-out ${
+  const dockClass = `theme-sidebar-surface group/sidebar z-40 flex fixed ${dockBase} border-border transition-transform duration-300 ease-out ${
     horizontal
       ? `flex-row items-center border-r-0 px-2 sm:px-4 ${
           position === "top" ? "border-b" : "border-b-0 border-t"
         }`
-      : `flex-col px-2 sm:px-3 ${
+      : `flex-col ${
           position === "left" ? "border-r" : "border-r-0 border-l"
         }`
   } ${hiddenMode ? "shadow-2xl" : ""} ${hiddenTransform} ${
