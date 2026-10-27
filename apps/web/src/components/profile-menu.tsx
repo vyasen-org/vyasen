@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import {
   Check,
   ChevronDown,
-  LogIn,
   LogOut,
   Settings2,
   UserRound,
@@ -80,7 +79,7 @@ export function ProfileMenu({
         }`}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-          <LogIn size={18} />
+          <UserRound size={18} />
         </span>
         <span className={compact ? "sr-only" : "min-w-0 flex-1"}>
           <span className="block text-sm font-semibold">Login</span>
@@ -88,7 +87,7 @@ export function ProfileMenu({
             Sign in for more
           </span>
         </span>
-        {!compact && <ChevronDown size={15} className="rotate-[-90deg]" />}
+        {!compact && <ChevronDown size={15} className="-rotate-90" />}
       </Link>
     );
   }

@@ -51,7 +51,6 @@ export const appearancePreferenceSchema = z.object({
   controlRoundness: z.enum(["sharp", "rounded", "pill"]),
   elevatedSurfaces: z.boolean(),
   shortcutKeyStyle: z.enum(["system", "mac", "windows"]),
-  pageTabColors: z.enum(["sidebar", "independent"]),
   fullScreen: z.boolean(),
 });
 
@@ -112,7 +111,6 @@ export const defaultUiPreferences: UiPreferences = {
   controlRoundness: "rounded",
   elevatedSurfaces: true,
   shortcutKeyStyle: "system",
-  pageTabColors: "sidebar",
   fullScreen: false,
   sidebarPosition: "left",
   sidebarMobilePosition: "top",

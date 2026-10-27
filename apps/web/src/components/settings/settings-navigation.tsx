@@ -44,7 +44,7 @@ export function SettingsNavigation() {
     <nav
       role="tablist"
       aria-label="Settings pages"
-      className="sticky top-0 z-10 mt-7 flex gap-1 overflow-x-auto border-b border-border bg-background"
+      className="settings-page-tablist sticky top-0 z-10 mt-7 flex gap-1 overflow-x-auto border-b bg-background"
     >
       {settingsLinks.map(({ label, to, icon: Icon }) => {
         const active = pathname === to;
