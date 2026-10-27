@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Check, Moon, Sun } from "lucide-react";
+import { Check, Moon, Smartphone, Sun } from "lucide-react";
 
 import { colorThemeIds, type UiPreferences } from "@school-sms/contracts";
 import {
@@ -13,66 +13,323 @@ import { useTheme } from "@/providers/theme-provider";
 
 const themeDetails: Record<
   UiPreferences["colorTheme"],
-  { label: string; swatch: string; detail: string }
+  {
+    label: string;
+    swatch: string;
+    detail: string;
+    previewBackground: string;
+    previewSurface: string;
+    previewPanel: string;
+  }
 > = {
+  onyx: {
+    label: "Veo Onyx",
+    swatch: "#e5e7eb",
+    detail: "Charcoal & soft white",
+    previewBackground: "#202020",
+    previewSurface: "#090909",
+    previewPanel: "#52525b",
+  },
+  steel: {
+    label: "Steel Blue",
+    swatch: "#7f9cb5",
+    detail: "Cool steel & muted blue",
+    previewBackground: "#252c33",
+    previewSurface: "#161b20",
+    previewPanel: "#4d6478",
+  },
   ocean: {
     label: "Ocean Blue",
     swatch: "#7193ff",
-    detail: "Clear & confident",
+    detail: "Default · clear & confident",
+    previewBackground: "#202b43",
+    previewSurface: "#111a2d",
+    previewPanel: "#405681",
   },
   midnight: {
     label: "Midnight Azure",
     swatch: "#4166d4",
     detail: "Deep blue & luminous",
+    previewBackground: "#10274a",
+    previewSurface: "#07152e",
+    previewPanel: "#234780",
+  },
+  brainwave: {
+    label: "Brainwave Slate",
+    swatch: "#1996e8",
+    detail: "Cool graphite & electric blue",
+    previewBackground: "#1b303e",
+    previewSurface: "#10212c",
+    previewPanel: "#285b7d",
+  },
+  arctic: {
+    label: "Arctic Frost",
+    swatch: "#93c5fd",
+    detail: "Icy blue & cool steel",
+    previewBackground: "#1f2c3d",
+    previewSurface: "#101a27",
+    previewPanel: "#3d6b9e",
+  },
+  violet: {
+    label: "Ultra Violet",
+    swatch: "#a78bfa",
+    detail: "Indigo depth & soft violet",
+    previewBackground: "#2b2340",
+    previewSurface: "#191327",
+    previewPanel: "#5b45a0",
   },
   lilac: {
     label: "Velvet Lilac",
     swatch: "#c18cff",
-    detail: "Plum & lavender",
+    detail: "Plum depth & soft lavender",
+    previewBackground: "#33263c",
+    previewSurface: "#201926",
+    previewPanel: "#664a7c",
+  },
+  barbie: {
+    label: "Barbie Pink",
+    swatch: "#ff62b0",
+    detail: "Bright & iconic",
+    previewBackground: "#351126",
+    previewSurface: "#210817",
+    previewPanel: "#963568",
+  },
+  magenta: {
+    label: "Neon Magenta",
+    swatch: "#e935c1",
+    detail: "Bold & electric",
+    previewBackground: "#361430",
+    previewSurface: "#210c1e",
+    previewPanel: "#8a2c76",
   },
   rose: {
     label: "Studio Rose",
     swatch: "#fb6f92",
     detail: "Expressive & warm",
+    previewBackground: "#332329",
+    previewSurface: "#21171c",
+    previewPanel: "#754554",
   },
-  ember: { label: "Ember Orange", swatch: "#ff8a34", detail: "Warm & focused" },
+  signal: {
+    label: "Signal Red",
+    swatch: "#f04462",
+    detail: "Crisp & high-impact",
+    previewBackground: "#3b111b",
+    previewSurface: "#260b12",
+    previewPanel: "#792337",
+  },
+  live: {
+    label: "Live Red",
+    swatch: "#ff234c",
+    detail: "Near-black & vivid red",
+    previewBackground: "#310b11",
+    previewSurface: "#1b080b",
+    previewPanel: "#8d1b31",
+  },
+  coral: {
+    label: "Coral Reef",
+    swatch: "#ff8a75",
+    detail: "Warm coral & deep charcoal",
+    previewBackground: "#382420",
+    previewSurface: "#241612",
+    previewPanel: "#8a4a3c",
+  },
+  copper: {
+    label: "Copper Slate",
+    swatch: "#d49376",
+    detail: "Mineral gray & copper",
+    previewBackground: "#322a25",
+    previewSurface: "#1f1a17",
+    previewPanel: "#71594d",
+  },
+  ember: {
+    label: "Ember Orange",
+    swatch: "#ff8a34",
+    detail: "Warm & focused",
+    previewBackground: "#3b291b",
+    previewSurface: "#23180f",
+    previewPanel: "#87512e",
+  },
   sunlit: {
     label: "Sunlit Yellow",
     swatch: "#f6c945",
     detail: "Bright & optimistic",
+    previewBackground: "#39321b",
+    previewSurface: "#242010",
+    previewPanel: "#837139",
+  },
+  sand: {
+    label: "Desert Sand",
+    swatch: "#e5c07b",
+    detail: "Warm neutral & sand",
+    previewBackground: "#37301f",
+    previewSurface: "#231e12",
+    previewPanel: "#8a7440",
+  },
+  noir: {
+    label: "Noir Gold",
+    swatch: "#d4b16a",
+    detail: "Ink black & antique gold",
+    previewBackground: "#26231c",
+    previewSurface: "#151310",
+    previewPanel: "#6b5a33",
+  },
+  lime: {
+    label: "Electric Lime",
+    swatch: "#a3e635",
+    detail: "Graphite & vivid chartreuse",
+    previewBackground: "#273217",
+    previewSurface: "#17200e",
+    previewPanel: "#587532",
   },
   grove: {
     label: "Grove Green",
     swatch: "#4ac28a",
     detail: "Fresh & grounded",
+    previewBackground: "#20372a",
+    previewSurface: "#122419",
+    previewPanel: "#347c59",
+  },
+  aurora: {
+    label: "Aurora Teal",
+    swatch: "#36d8c5",
+    detail: "Cool & luminous",
+    previewBackground: "#143331",
+    previewSurface: "#09221f",
+    previewPanel: "#1c766d",
   },
   graphite: {
     label: "Graphite Studio",
     swatch: "#8b68ff",
     detail: "Graphite & violet",
+    previewBackground: "#292337",
+    previewSurface: "#191521",
+    previewPanel: "#59487d",
+  },
+  mint: {
+    label: "Mint Breeze",
+    swatch: "#5eead4",
+    detail: "Crisp mint & deep slate",
+    previewBackground: "#1c332f",
+    previewSurface: "#0e1f1c",
+    previewPanel: "#2f7d6e",
   },
 };
 
+function ThemePreview({
+  theme,
+}: {
+  theme: (typeof themeDetails)[UiPreferences["colorTheme"]];
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-[90px] gap-2 rounded-xl border border-border/50 p-2"
+      style={{ backgroundColor: theme.previewBackground }}
+    >
+      <span
+        className="w-1/5 shrink-0 space-y-1 rounded-lg p-2"
+        style={{ backgroundColor: theme.previewSurface }}
+      >
+        <span className="block h-1 rounded-full" style={{ backgroundColor: theme.swatch }} />
+        <span className="block h-1 rounded-full opacity-70" style={{ backgroundColor: theme.swatch }} />
+        <span className="block h-1 rounded-full opacity-50" style={{ backgroundColor: theme.swatch }} />
+      </span>
+      <span
+        className="min-w-0 flex-1 space-y-2 rounded-lg p-2"
+        style={{ backgroundColor: theme.previewSurface }}
+      >
+        <span className="block h-1 rounded-full bg-white/50" />
+        <span className="block h-1 w-2/3 rounded-full bg-white/30" />
+        <span className="grid grid-cols-2 gap-1">
+          <span className="h-7 rounded" style={{ backgroundColor: theme.previewPanel }} />
+          <span className="h-7 rounded opacity-80" style={{ backgroundColor: theme.previewPanel }} />
+        </span>
+      </span>
+    </span>
+  );
+}
+
 const displayModes = [
   {
-    id: "light",
-    label: "Light",
-    detail: "Use a light color scheme",
-    swatch: "#f4f6ff",
+    id: "system",
+    label: "Use device setting",
+    detail: "Match your system preference",
+    icon: Smartphone,
   },
   {
     id: "dark",
     label: "Dark",
     detail: "Use a dark color scheme",
-    swatch: "#202538",
+    icon: Moon,
   },
   {
-    id: "system",
-    label: "System",
-    detail: "Follow your device setting",
-    swatch: "#a8b6e8",
+    id: "light",
+    label: "Light",
+    detail: "Use a light color scheme",
+    icon: Sun,
   },
 ] as const;
+
+function DisplayModePreview({ mode }: { mode: "light" | "dark" | "system" }) {
+  const isDark = mode === "dark";
+
+  function WorkspacePreview({ dark }: { dark: boolean }) {
+    return (
+      <div
+        className={`flex min-w-0 flex-1 gap-2 rounded-lg p-2 ${
+          dark ? "bg-slate-950" : "bg-slate-100"
+        }`}
+      >
+        <div
+          className={`w-1/5 shrink-0 space-y-1 rounded-md p-2 ${
+            dark ? "bg-slate-900" : "bg-white"
+          }`}
+        >
+          <span className="block h-1 rounded-full bg-accent/80" />
+          <span className="block h-1 rounded-full bg-accent/50" />
+          <span className="block h-1 rounded-full bg-accent/50" />
+        </div>
+        <div
+          className={`min-w-0 flex-1 space-y-2 rounded-md p-2 ${
+            dark ? "bg-slate-900" : "bg-white"
+          }`}
+        >
+          <span
+            className={`block h-1 rounded-full ${
+              dark ? "bg-slate-500" : "bg-slate-400"
+            }`}
+          />
+          <span
+            className={`block h-1 w-2/3 rounded-full ${
+              dark ? "bg-slate-700" : "bg-slate-300"
+            }`}
+          />
+          <span className="grid grid-cols-2 gap-1">
+            <span className="h-7 rounded bg-accent/40" />
+            <span className="h-7 rounded bg-accent/50" />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className="flex h-24 gap-2 rounded-xl border border-border/70 bg-background/40 p-2"
+    >
+      {mode === "system" ? (
+        <>
+          <WorkspacePreview dark={false} />
+          <WorkspacePreview dark />
+        </>
+      ) : (
+        <WorkspacePreview dark={isDark} />
+      )}
+    </div>
+  );
+}
 
 export function AppearanceSettings() {
   const { preferences, updatePreference } = useTheme();
@@ -115,15 +372,46 @@ export function AppearanceSettings() {
         title="Display mode"
         description="Choose a light or dark workspace, or follow your device."
       >
-        <ChoiceCards
-          columns={3}
-          value={preferences.colorMode}
-          onChange={(value) => updatePreference("colorMode", value)}
-          choices={displayModes.map((mode) => ({
-            ...mode,
-            detail: mode.detail,
-          }))}
-        />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {displayModes.map(({ id, label, detail, icon: Icon }) => {
+            const selected = preferences.colorMode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => updatePreference("colorMode", id)}
+                className={`rounded-xl border p-3 text-left transition-colors hover:border-accent/50 ${
+                  selected
+                    ? "border-accent bg-accent/10"
+                    : "border-border bg-background"
+                }`}
+              >
+                <DisplayModePreview mode={id} />
+                <span className="mt-3 flex items-center gap-2">
+                  <span
+                    className={`grid size-5 shrink-0 place-items-center rounded-full border ${
+                      selected
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-muted-foreground text-transparent"
+                    }`}
+                  >
+                    {selected && <Check aria-hidden="true" size={13} />}
+                  </span>
+                  <Icon
+                    aria-hidden="true"
+                    size={18}
+                    className="shrink-0 text-muted-foreground"
+                  />
+                  <span className="text-sm font-medium">{label}</span>
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {detail}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </SettingsSection>
 
       <SettingsSection
@@ -140,29 +428,28 @@ export function AppearanceSettings() {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => updatePreference("colorTheme", themeId)}
-                className={`rounded-2xl border p-3 text-left transition-colors ${
+                className={`rounded-xl border p-3 text-left transition-colors ${
                   selected
                     ? "border-accent bg-accent/10"
                     : "border-border bg-background hover:border-accent/50"
                 }`}
               >
-                <span className="flex items-center justify-between">
+                <ThemePreview theme={theme} />
+                <span className="mt-2 flex items-center gap-2">
                   <span
-                    className="grid size-8 place-items-center rounded-full"
-                    style={{ backgroundColor: theme.swatch }}
+                    className={`grid size-5 shrink-0 place-items-center rounded-full border ${
+                      selected
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-muted-foreground"
+                    }`}
                   >
-                    {selected && <Check size={16} className="text-slate-950" />}
+                    {selected && <Check aria-hidden="true" size={13} />}
                   </span>
-                  {selected && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                      Selected
-                    </span>
-                  )}
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    {theme.label}
+                  </span>
                 </span>
-                <span className="mt-3 block text-sm font-semibold">
-                  {theme.label}
-                </span>
-                <span className="mt-1 block text-xs text-muted-foreground">
+                <span className="mt-1 block truncate text-xs text-muted-foreground">
                   {theme.detail}
                 </span>
               </button>
@@ -406,15 +693,6 @@ export function AppearanceSettings() {
             { value: "system", label: "Follow your system" },
             { value: "mac", label: "Command (⌘)" },
             { value: "windows", label: "Control (Ctrl)" },
-          ]}
-        />
-        <SelectControl
-          label="Page tab colors"
-          value={preferences.pageTabColors}
-          onChange={(value) => updatePreference("pageTabColors", value)}
-          options={[
-            { value: "sidebar", label: "Follow the sidebar" },
-            { value: "independent", label: "Independent tab style" },
           ]}
         />
       </SettingsSection>

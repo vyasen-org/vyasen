@@ -1,5 +1,25 @@
 {
   "name": "@school-sms/database",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/database.ts",
+    "./migrations": "./src/migration-provider.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "kysely": "^0.28.8",
+    "pg": "^8.16.3",
+    "tsx": "^4.20.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/pg": "^8.15.5",
+    "typescript": "^5.9.2"
+  }
 }

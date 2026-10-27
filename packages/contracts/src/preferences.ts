@@ -1,14 +1,30 @@
 import { z } from "zod";
 
 export const colorThemeIds = [
-  "ocean",
+  "onyx",
+  "steel",
   "midnight",
+  "ocean",
+  "brainwave",
+  "arctic",
+  "violet",
+  "graphite",
   "lilac",
+  "barbie",
+  "magenta",
   "rose",
+  "signal",
+  "live",
+  "coral",
+  "copper",
   "ember",
   "sunlit",
+  "sand",
+  "noir",
+  "lime",
   "grove",
-  "graphite",
+  "aurora",
+  "mint",
 ] as const;
 
 export const colorThemeSchema = z.enum(colorThemeIds);
@@ -35,19 +51,32 @@ export const appearancePreferenceSchema = z.object({
   controlRoundness: z.enum(["sharp", "rounded", "pill"]),
   elevatedSurfaces: z.boolean(),
   shortcutKeyStyle: z.enum(["system", "mac", "windows"]),
-  pageTabColors: z.enum(["sidebar", "independent"]),
   fullScreen: z.boolean(),
 });
 
 export const sidebarPreferenceSchema = z.object({
   sidebarPosition: z.enum(["left", "right", "top", "bottom"]),
-  sidebarHeaderBehavior: z.enum(["fixed", "scroll", "hide-on-scroll"]),
+  sidebarMobilePosition: z.enum(["top", "bottom"]).default("top"),
+  sidebarBehavior: z
+    .enum(["pinned", "hide-on-scroll", "hidden"])
+    .default("pinned"),
+  sidebarMobileBehavior: z
+    .enum(["pinned", "hide-on-scroll"])
+    .default("hide-on-scroll"),
+  sidebarWidth: z.number().int().min(64).max(500).default(256),
+  floatingSidebarButtonEnabled: z.boolean().default(true),
+  floatingSidebarButtonPosition: z
+    .object({
+      x: z.number().min(0).max(1).default(1),
+      y: z.number().min(0).max(1).default(1),
+    })
+    .default({ x: 1, y: 1 }),
   sidebarIconStyle: z.enum(["monochrome", "multicolor"]),
+  sidebarIconColorMode: z.enum(["theme", "adaptive", "custom"]).default("custom"),
   sidebarIconColor: z.string().regex(/^#[\da-f]{6}$/i),
   mainContentLayout: z.enum(["contained", "wide", "full"]),
   showKeyboardShortcuts: z.boolean(),
   elevatedSidebarMenus: z.boolean(),
-  showSidebarOnMobile: z.boolean(),
   hideSidebar: z.boolean(),
   sidebarCollapsed: z.boolean(),
 });
@@ -82,16 +111,20 @@ export const defaultUiPreferences: UiPreferences = {
   controlRoundness: "rounded",
   elevatedSurfaces: true,
   shortcutKeyStyle: "system",
-  pageTabColors: "sidebar",
   fullScreen: false,
   sidebarPosition: "left",
-  sidebarHeaderBehavior: "fixed",
+  sidebarMobilePosition: "top",
+  sidebarBehavior: "pinned",
+  sidebarMobileBehavior: "hide-on-scroll",
+  sidebarWidth: 256,
+  floatingSidebarButtonEnabled: true,
+  floatingSidebarButtonPosition: { x: 1, y: 1 },
   sidebarIconStyle: "monochrome",
+  sidebarIconColorMode: "custom",
   sidebarIconColor: "#818cf8",
   mainContentLayout: "wide",
   showKeyboardShortcuts: true,
   elevatedSidebarMenus: true,
-  showSidebarOnMobile: true,
   hideSidebar: false,
   sidebarCollapsed: false,
 };

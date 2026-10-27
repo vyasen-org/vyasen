@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 export function SettingsSection({
   children,
@@ -39,7 +40,7 @@ export function SettingToggle({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
         {description && (
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
@@ -47,25 +48,12 @@ export function SettingToggle({
           </p>
         )}
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
         aria-label={label}
         disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-accent" : "bg-muted",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-5" : "translate-x-0.5",
-          )}
-        />
-      </button>
+      />
     </div>
   );
 }
@@ -101,7 +89,7 @@ export function ChoiceCards<T extends string>({
           aria-pressed={value === choice.id}
           onClick={() => onChange(choice.id)}
           className={cn(
-            "flex min-h-14 items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:border-accent/50",
+            "flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:border-accent/50",
             value === choice.id
               ? "border-accent bg-accent/10"
               : "border-border bg-background",

@@ -1,8 +1,8 @@
 # School SMS
 
-The initial School SMS monorepo scaffold uses pnpm workspaces and Turborepo.
-The first frontend slice is a static React 19 application; it does not connect
-to authentication, an API, or a database yet.
+The School SMS monorepo uses pnpm workspaces and Turborepo. The web app uses
+React 19, TanStack Router and Query; the API uses Fastify 5 and Kysely with
+PostgreSQL.
 
 ## Requirements
 
@@ -23,18 +23,22 @@ pnpm typecheck
 pnpm build
 ```
 
-Copy `.env.example` to `.env` if you want to customize local frontend settings.
+Copy `.env.example` to `.env`, set the three authentication secrets to separate
+random values, and configure PostgreSQL before starting the API. Configure SMTP
+to send email codes; configure Google OAuth client credentials to enable Google
+OAuth and One Tap. See [the API authentication guide](./apps/api/README.md) for
+setup, schema, flow, and deployment details.
 
 ## Workspace layout
 
 ```text
 apps/
-  api/              Reserved for future API work; intentionally unimplemented
+  api/              Fastify API and email/Google authentication
   web/              React, Vite, TanStack Router and Query
 packages/
   config/           Reserved for shared configuration
-  contracts/        Shared role schema and TypeScript types
-  database/         Reserved for future database work
+  contracts/        Shared Zod contracts and TypeScript types
+  database/         Kysely client and versioned PostgreSQL migrations
 ```
 
 The router uses a pathless authenticated route group for the dashboard and
@@ -45,7 +49,6 @@ they are not yet synchronized between devices or stored per user or school.
 The sidebar supports left, right, top, and bottom placement, and its preview
 navigation changes with the selected demo role.
 
-The current profile role selector and school switcher are visual previews only:
-authentication, role permissions, and tenant isolation must be enforced by
-future backend services, not by this static UI. Role-based navigation is not an
-authorization boundary.
+Authentication does not assign a school, membership, role, or permission.
+Those must be granted by later school-onboarding and membership workflows;
+frontend role previews are not an authorization boundary.

@@ -32,8 +32,34 @@ function readPreferences(): UiPreferences {
     const storedValue = window.localStorage.getItem(PREFERENCES_KEY);
     if (!storedValue) return defaultUiPreferences;
 
-    const result = uiPreferencesSchema.safeParse(JSON.parse(storedValue));
-    if (result.success) return { ...result.data, fullScreen: false };
+    const storedPreferences: unknown = JSON.parse(storedValue);
+    const result = uiPreferencesSchema.safeParse(storedPreferences);
+    if (result.success) {
+      const saved =
+        typeof storedPreferences === "object" && storedPreferences !== null
+          ? (storedPreferences as Record<string, unknown>)
+          : {};
+      const legacyPosition = saved.sidebarPosition;
+      const legacyHorizontalBehavior =
+        saved.sidebarHeaderBehavior === "hide-on-scroll" &&
+        (legacyPosition === "top" || legacyPosition === "bottom");
+      return {
+        ...result.data,
+        sidebarMobilePosition:
+          typeof saved.sidebarMobilePosition === "string"
+            ? result.data.sidebarMobilePosition
+            : legacyPosition === "bottom"
+              ? "bottom"
+              : result.data.sidebarMobilePosition,
+        sidebarBehavior:
+          typeof saved.sidebarBehavior === "string"
+            ? result.data.sidebarBehavior
+            : legacyHorizontalBehavior
+              ? "hide-on-scroll"
+              : result.data.sidebarBehavior,
+        fullScreen: false,
+      };
+    }
 
     console.warn(
       "Saved appearance settings were invalid; defaults were restored.",
@@ -116,7 +142,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.dataset.scrollbarStyle = preferences.scrollbarStyle;
     root.dataset.controlRoundness = preferences.controlRoundness;
     root.dataset.elevatedSurfaces = String(preferences.elevatedSurfaces);
-    root.dataset.pageTabColors = preferences.pageTabColors;
     root.style.setProperty(
       "--reading-temperature",
       `${(preferences.readingTemperature - 50) * 0.32}deg`,
