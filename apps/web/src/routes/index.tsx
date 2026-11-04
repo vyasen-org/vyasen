@@ -222,7 +222,7 @@ function LandingPage() {
           </section>
         </main>
         <footer className="border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
-          School SMS · A shared workspace for school communities
+          Vyasen · A shared workspace for school communities
         </footer>
       </div>
     </AppShell>

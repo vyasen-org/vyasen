@@ -31,7 +31,7 @@ type NotificationPreference = keyof NotificationPreferences;
 const notificationPreferenceKeys = Object.keys(
   notificationPreferenceDefaults,
 ) as NotificationPreference[];
-const notificationStorageKey = "school-sms-notification-preferences";
+const notificationStorageKey = "vyasen-notification-preferences";
 
 function readNotificationPreferences(userId: string): NotificationPreferences {
   try {

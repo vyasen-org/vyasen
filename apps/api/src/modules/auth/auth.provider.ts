@@ -167,7 +167,7 @@ export class EmailProvider {
       await this.transporter.sendMail({
         from: this.config.from,
         to: email,
-        subject: "Your School SMS sign-in code",
+        subject: "Your Vyasen sign-in code",
         text: `Your sign-in code is ${code}. It expires in ${expiresInMinutes} minutes. If you did not request this code, you can ignore this email.`,
       });
     } catch (error) {

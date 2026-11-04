@@ -3,8 +3,8 @@ import { sql, type Kysely, type Transaction } from "kysely";
 import type {
   AuthSession,
   AuthUser,
-} from "@school-sms/contracts";
-import type { Database } from "@school-sms/database";
+} from "@vyasen/contracts";
+import type { Database } from "@vyasen/database";
 
 type Executor = Kysely<Database> | Transaction<Database>;
 

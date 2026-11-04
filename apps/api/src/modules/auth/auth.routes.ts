@@ -14,7 +14,7 @@ import {
   authSessionResponseSchema,
   authSessionParamsSchema,
   authSessionsResponseSchema,
-} from "@school-sms/contracts";
+} from "@vyasen/contracts";
 
 import type { AppConfig } from "../../config";
 import { createAuthController } from "./auth.controller";

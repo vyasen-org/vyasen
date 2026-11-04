@@ -7,7 +7,7 @@ import {
   Settings2,
   UserRound,
 } from "lucide-react";
-import type { SchoolRole } from "@school-sms/contracts";
+import type { SchoolRole } from "@vyasen/contracts";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {

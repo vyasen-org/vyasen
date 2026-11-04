@@ -1,8 +1,8 @@
-export const googleOAuthPopupName = "school-sms-google-oauth";
-export const googleOAuthPopupStorageKey = "school_sms_google_oauth_popup";
-export const googleOAuthPopupChannelName = "school-sms-google-oauth";
-export const googleOAuthPopupMessageType = "school-sms:google-oauth-result";
-export const googleOAuthPopupAckType = "school-sms:google-oauth-ack";
+export const googleOAuthPopupName = "vyasen-google-oauth";
+export const googleOAuthPopupStorageKey = "vyasen_google_oauth_popup";
+export const googleOAuthPopupChannelName = "vyasen-google-oauth";
+export const googleOAuthPopupMessageType = "vyasen:google-oauth-result";
+export const googleOAuthPopupAckType = "vyasen:google-oauth-ack";
 
 export type GoogleOAuthPopupResult =
   "complete" | "google-failed" | "link-required";

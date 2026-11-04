@@ -8,7 +8,7 @@ import type {
   AuthEmailCodeVerification,
   AuthGoogleCredential,
   AuthSessionParams,
-} from "@school-sms/contracts";
+} from "@vyasen/contracts";
 
 import type { AppConfig } from "../../config";
 import { AppError } from "../../errors";

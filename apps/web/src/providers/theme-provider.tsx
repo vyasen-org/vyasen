@@ -12,9 +12,9 @@ import {
   defaultUiPreferences,
   uiPreferencesSchema,
   type UiPreferences,
-} from "@school-sms/contracts";
+} from "@vyasen/contracts";
 
-const PREFERENCES_KEY = "school-sms-ui-preferences";
+const PREFERENCES_KEY = "vyasen-ui-preferences";
 
 interface ThemeContextValue {
   preferences: UiPreferences;
@@ -81,7 +81,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!preferences.themeRotationEnabled) return;
     try {
       if (
-        window.sessionStorage.getItem("school-sms-theme-rotated") === "true"
+        window.sessionStorage.getItem("vyasen-theme-rotated") === "true"
       ) {
         return;
       }
@@ -92,7 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         ? eligibleThemes
         : [preferences.colorTheme];
       const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-      window.sessionStorage.setItem("school-sms-theme-rotated", "true");
+      window.sessionStorage.setItem("vyasen-theme-rotated", "true");
       setPreferences((current) => ({ ...current, colorTheme: randomTheme }));
     } catch (error) {
       console.warn(
@@ -180,7 +180,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const resetPreferences = useCallback(() => {
     setPreferences(defaultUiPreferences);
     try {
-      window.sessionStorage.removeItem("school-sms-theme-rotated");
+      window.sessionStorage.removeItem("vyasen-theme-rotated");
     } catch (error) {
       console.warn("Could not reset the session theme rotation.", error);
     }

@@ -1,9 +1,10 @@
 {
-  "name": "school-sms",
+  "name": "vyasen",
   "private": true,
-  "packageManager": "pnpm@12.15.0",
+  "packageManager": "pnpm@12.16.1",
   "scripts": {
     "build": "turbo build",
+    "db:migrate": "pnpm --filter @vyasen/database migrate",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck"

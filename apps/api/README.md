@@ -6,12 +6,12 @@ email one-time-code sign-in, Google OAuth/OIDC, Google One Tap, Google identity
 linking, and cookie-backed sessions.
 
 The API is written in TypeScript, uses Zod schemas from
-[`@school-sms/contracts`](../../packages/contracts), and stores authentication
+[`@vyasen/contracts`](../../packages/contracts), and stores authentication
 data in PostgreSQL through Kysely and
-[`@school-sms/database`](../../packages/database).
+[`@vyasen/database`](../../packages/database).
 
 > **Current scope:** user accounts are global identities. Authentication does
-> not create a school, assign a `school_id`, or grant school membership or a
+> not create a school, assign an `institution_id`, or grant school membership or a
 > role. Those permissions must come from a future authorized onboarding or
 > invitation flow. School-specific API endpoints are not implemented yet.
 
@@ -33,7 +33,7 @@ Repository (Kysely queries)
 PostgreSQL
 
 Service ----> Provider/adapter (SMTP and Google OAuth/OIDC)
-Route ------> Shared contracts (@school-sms/contracts)
+Route ------> Shared contracts (@vyasen/contracts)
 ```
 
 The current authentication module is in [`src/modules/auth`](src/modules/auth):
@@ -99,7 +99,7 @@ Run commands from the repository root:
    running API. Apply database migrations:
 
    ```bash
-   pnpm --filter @school-sms/database migrate
+   pnpm db:migrate
    ```
 
    In development, the migration command can use `DATABASE_URL` when
@@ -115,7 +115,7 @@ Run commands from the repository root:
 5. Start the API in watch mode:
 
    ```bash
-   pnpm --filter @school-sms/api dev
+   pnpm --filter @vyasen/api dev
    ```
 
 By default, the API listens on `http://127.0.0.1:4000`. The web app’s default
@@ -151,7 +151,7 @@ values at startup.
 | `SMTP_SECURE` | No | `false`; set `true` when SMTP uses an implicit TLS connection. |
 | `SMTP_USER` | Optional | SMTP username; must be set together with `SMTP_PASSWORD`. |
 | `SMTP_PASSWORD` | Optional | SMTP password; must be set together with `SMTP_USER`. |
-| `SMTP_FROM` | No | `no-reply@school-sms.example`; accepts an email address or `Display Name <email>`. |
+| `SMTP_FROM` | No | `no-reply@vyasen.example`; accepts an email address or `Display Name <email>`. |
 
 Google credentials must be configured as a pair. Production API and web origins
 must use HTTPS. Configure `TRUST_PROXY` only with the addresses or CIDRs of
@@ -240,7 +240,7 @@ It creates:
 
 Authentication data is global rather than school-owned and therefore is not
 tenant-scoped. Any future school-owned data must follow the repository’s
-tenant-isolation requirements, including `school_id`, authorization checks,
+tenant-isolation requirements, including `institution_id`, authorization checks,
 and PostgreSQL Row-Level Security where applicable.
 
 The server runs bounded cleanup for expired codes, nonces, rate-limit buckets,
@@ -253,13 +253,13 @@ Run commands from the repository root:
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm --filter @school-sms/api dev` | Run the API with `tsx watch`. |
-| `pnpm --filter @school-sms/api start` | Run the API without watch mode. |
-| `pnpm --filter @school-sms/api build` | TypeScript validation (`tsc --noEmit`). |
-| `pnpm --filter @school-sms/api typecheck` | Type-check the API. |
-| `pnpm --filter @school-sms/api lint` | Run the API package’s TypeScript lint check. |
-| `pnpm --filter @school-sms/api test` | Run API authentication tests with Node’s test runner. |
-| `pnpm --filter @school-sms/database migrate` | Apply pending PostgreSQL migrations. |
+| `pnpm --filter @vyasen/api dev` | Run the API with `tsx watch`. |
+| `pnpm --filter @vyasen/api start` | Run the API without watch mode. |
+| `pnpm --filter @vyasen/api build` | TypeScript validation (`tsc --noEmit`). |
+| `pnpm --filter @vyasen/api typecheck` | Type-check the API. |
+| `pnpm --filter @vyasen/api lint` | Run the API package’s TypeScript lint check. |
+| `pnpm --filter @vyasen/api test` | Run API authentication tests with Node’s test runner. |
+| `pnpm db:migrate` | Apply pending PostgreSQL migrations (`packages/database`). |
 
 ## Adding an API feature
 

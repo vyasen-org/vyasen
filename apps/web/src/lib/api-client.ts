@@ -1,6 +1,6 @@
 import {
   authErrorResponseSchema,
-} from "@school-sms/contracts";
+} from "@vyasen/contracts";
 import type { z } from "zod";
 
 export const apiBaseUrl = (

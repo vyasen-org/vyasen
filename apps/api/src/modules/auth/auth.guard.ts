@@ -5,7 +5,7 @@ import { AppError } from "../../errors";
 import type { AuthService } from "./auth.service";
 
 export interface AuthenticatedContext {
-  user: import("@school-sms/contracts").AuthUser;
+  user: import("@vyasen/contracts").AuthUser;
   sessionId: string;
 }
 

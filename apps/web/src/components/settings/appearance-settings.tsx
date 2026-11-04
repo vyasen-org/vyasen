@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Check, Moon, Smartphone, Sun } from "lucide-react";
 
-import { colorThemeIds, type UiPreferences } from "@school-sms/contracts";
+import { colorThemeIds, type UiPreferences } from "@vyasen/contracts";
 import {
   ChoiceCards,
   RangeControl,

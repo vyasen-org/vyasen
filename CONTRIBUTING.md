@@ -1,6 +1,6 @@
-# Contributing to Indic SMS (School SMS)
+# Contributing to Vyasen (Indic SMS)
 
-Thank you for your interest in contributing to **Indic SMS**! We are building a modern, secure, and accessible multi-tenant School Management System (SMS) designed to serve educational institutions with high reliability and performance.
+Thank you for your interest in contributing to **Vyasen**! We are building a modern, secure, and accessible multi-tenant School Management System (SMS) designed to serve educational institutions with high reliability and performance.
 
 Open source thrives on community contributions. Whether you are fixing a typo, resolving an open issue, proposing a new feature, or improving documentation, your support is warmly welcomed.
 
@@ -42,7 +42,7 @@ This project is governed by the [Contributor Covenant](https://www.contributor-c
 
 ### Reporting Bugs
 
-Before creating a bug report, please check existing [Issues](https://github.com/vijay-jadhav1997/indic-sms/issues) to ensure the problem has not already been reported or solved.
+Before creating a bug report, please check existing [Issues](https://github.com/vyasen-org/vyasen/issues) to ensure the problem has not already been reported or solved.
 
 If filing a new bug:
 1. Use the **Bug Report** template if available.
@@ -90,7 +90,7 @@ indic_sms/
 ### Key Architectural Boundaries
 
 - **`packages/contracts` is the Single Source of Truth**: All payloads, API contracts, and parameter validations must use shared Zod schemas.
-- **Tenant Isolation**: Indic SMS is multi-tenant. Server-side code must enforce tenant (`school_id`) boundaries for all queries. Frontend role previews are cosmetic; they are never an authorization boundary.
+- **Tenant Isolation**: Vyasen is multi-tenant. Server-side code must enforce tenant (`institution_id`) boundaries for all queries. Frontend role previews are cosmetic; they are never an authorization boundary.
 - **Strict Boundary Separation**:
   - Never import frontend packages/modules into `apps/api` or `packages/database`.
   - Never import backend implementation details or server-only secrets into `apps/web`.
@@ -109,11 +109,11 @@ Ensure you have the following installed on your machine:
 
 ### Initial Setup
 
-1. **Fork the repository** on GitHub: [indic-sms](https://github.com/vijay-jadhav1997/indic-sms).
+1. **Fork the repository** on GitHub: [vyasen](https://github.com/vyasen-org/vyasen).
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/<your-username>/indic-sms.git
-   cd indic-sms
+   git clone https://github.com/<your-username>/vyasen.git
+   cd vyasen
    ```
 3. **Install workspace dependencies**:
    ```bash
@@ -128,18 +128,120 @@ Create your local `.env` file from the provided template:
 cp .env.example .env
 ```
 
-Open `.env` and configure:
-- `DATABASE_URL`: Your local PostgreSQL connection string.
-- Authentication secrets: Generate three distinct, cryptographically strong random strings for session, access, and refresh token signing.
-- Optional: SMTP configuration (for email OTPs) and Google OAuth Client credentials (for Google Sign-In / One Tap).
+Open `.env` and verify the settings:
+- **`DATABASE_URL`**: Set to your local PostgreSQL connection string (see [Local PostgreSQL Database Setup](#local-postgresql-database-setup) below).
+- **Authentication Secrets**: Generate three distinct, cryptographically strong random strings for session, access, and refresh token signing:
+  ```bash
+  node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+  ```
+- **Optional**: Configure SMTP credentials (for email OTP codes) and Google OAuth credentials (for Google Sign-In / One Tap).
 
-### Database Setup & Migrations
+---
 
-Ensure your local PostgreSQL instance is running, then run the database migrations:
+### Local PostgreSQL Database Setup
+
+Vyasen requires a PostgreSQL database (`v16+`, `v18` recommended). For local development, we follow a standardized credential convention:
+
+| Setting | Standard Local Value |
+| :--- | :--- |
+| **Database Name** | `vyasen` |
+| **Username** | `vyasen` |
+| **Password** | `vyasen` |
+| **Host** | `localhost` (or `127.0.0.1`) |
+| **Port** | `5432` |
+| **Connection URL** | `postgresql://vyasen:vyasen@localhost:5432/vyasen` |
+
+Choose one of the two options below to set up your local database:
+
+#### Option A: Native PostgreSQL (psql CLI)
+
+1. Open your terminal and connect to your local PostgreSQL server as the administrative `postgres` user:
+   ```bash
+   psql -U postgres
+   ```
+   *(On Linux/macOS, you may run `sudo -u postgres psql` if using peer authentication)*.
+
+2. Execute the following SQL commands to create the dedicated `vyasen` user and database:
+   ```sql
+   -- Create the dedicated development user with password
+   CREATE USER vyasen WITH PASSWORD 'vyasen' CREATEDB;
+
+   -- Create the development database owned by vyasen
+   CREATE DATABASE vyasen OWNER vyasen;
+
+   -- Grant all privileges on the database
+   GRANT ALL PRIVILEGES ON DATABASE vyasen TO vyasen;
+
+   -- Connect to the newly created database and grant public schema permissions
+   \c vyasen
+   GRANT ALL ON SCHEMA public TO vyasen;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO vyasen;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO vyasen;
+
+   -- Exit psql
+   \q
+   ```
+
+3. Alternatively, if you have PostgreSQL client utilities in your `PATH`, you can run these one-liners directly from your shell:
+   ```bash
+   createuser -U postgres -P vyasen
+   # Enter 'vyasen' when prompted for password
+
+   createdb -U postgres -O vyasen vyasen
+   ```
+
+#### Option B: Docker (Zero-Install Container)
+
+If you prefer using Docker to run PostgreSQL without installing it directly on your host machine:
 
 ```bash
-pnpm --filter @school-sms/database migrate
+docker run -d \
+  --name vyasen-postgres \
+  -e POSTGRES_USER=vyasen \
+  -e POSTGRES_PASSWORD=vyasen \
+  -e POSTGRES_DB=vyasen \
+  -p 5432:5432 \
+  postgres:18-alpine
 ```
+
+To stop or restart the container later:
+```bash
+docker stop vyasen-postgres
+docker start vyasen-postgres
+```
+
+---
+
+### Applying Database Migrations
+
+Once your PostgreSQL database is running, configure your `.env` with:
+
+```env
+DATABASE_URL=postgresql://vyasen:vyasen@localhost:5432/vyasen
+```
+
+Apply all pending versioned migrations using the workspace script:
+
+```bash
+pnpm db:migrate
+```
+
+*(This applies all Kysely migrations located in `packages/database/src/migrations` and ensures the database schema is up to date).*
+
+#### Verifying Database Setup
+
+You can confirm that tables and migrations were created properly by connecting with `psql`:
+
+```bash
+psql -U vyasen -d vyasen -h localhost -W
+# Password: vyasen
+```
+
+Inside the `psql` prompt, run:
+```sql
+\dt
+```
+You should see the core tables: `users`, `sessions`, `email_codes`, and `platform_migrations`.
 
 ### Running the Workspace
 
@@ -239,7 +341,7 @@ docs(readme): update local postgres connection instructions
    ```
    If working on backend auth/logic with tests:
    ```bash
-   pnpm --filter @school-sms/api test
+   pnpm --filter @vyasen/api test
    ```
 3. **Push to your fork**:
    ```bash
