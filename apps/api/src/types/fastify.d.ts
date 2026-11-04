@@ -1,6 +1,6 @@
 import "fastify";
 
-import type { AuthUser } from "@school-sms/contracts";
+import type { AuthUser } from "@vyasen/contracts";
 import type { AuthService } from "../modules/auth/auth.service";
 
 declare module "fastify" {

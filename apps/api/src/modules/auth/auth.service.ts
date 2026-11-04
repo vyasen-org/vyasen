@@ -4,8 +4,8 @@ import type { Kysely } from "kysely";
 import type {
   AuthSession,
   AuthUser,
-} from "@school-sms/contracts";
-import type { Database } from "@school-sms/database";
+} from "@vyasen/contracts";
+import type { Database } from "@vyasen/database";
 
 import type { AppConfig } from "../../config";
 import { AppError, invalidCodeError } from "../../errors";
@@ -411,6 +411,7 @@ export class AuthService {
     });
 
     if (result === "invalid_nonce") {
+      console.log("Jay Jay Shree Dnyanoba Mauli TUkaram");
       throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
     }
     if (result === "account_unavailable") {

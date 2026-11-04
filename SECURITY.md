@@ -1,6 +1,6 @@
 # Security Policy
 
-At **Indic SMS**, we take the security and privacy of educational institutions, staff, parents, and students very seriously. As a multi-tenant School Management System, protecting Personally Identifiable Information (PII), academic records, and institutional data from unauthorized access is fundamental to our design.
+At **Vyasen (Indic SMS)**, we take the security and privacy of educational institutions, staff, parents, and students very seriously. As a multi-tenant School Management System, protecting Personally Identifiable Information (PII), academic records, and institutional data from unauthorized access is fundamental to our design.
 
 This policy outlines how to report potential vulnerabilities and what you can expect from our security response team.
 
@@ -29,17 +29,17 @@ We strongly recommend always running the latest tagged version or pulling the mo
 
 The safest and fastest way to report a vulnerability is via GitHub's Private Vulnerability Reporting:
 
-1. Navigate to our repository: [https://github.com/vijay-jadhav1997/indic-sms](https://github.com/vijay-jadhav1997/indic-sms).
+1. Navigate to our repository: [https://github.com/vyasen-org/vyasen](https://github.com/vyasen-org/vyasen).
 2. Click the **Security** tab.
-3. Click **Report a vulnerability** (or go directly to [Security Advisories New](https://github.com/vijay-jadhav1997/indic-sms/security/advisories/new)).
+3. Click **Report a vulnerability** (or go directly to [Security Advisories New](https://github.com/vyasen-org/vyasen/security/advisories/new)).
 4. Complete the advisory form with as much detail as possible.
 
 ### Alternative Channel: Direct Email
 
 If GitHub Private Advisories are unavailable or you prefer direct communication, please email:
 
-- **Security Team**: `security@indic-sms.org` *(or contact the repository maintainer directly via GitHub profile)*
-- Use the subject line: `[SECURITY] Indic SMS Vulnerability Report - <Brief Summary>`
+- **Security Team**: `security@vyasen.org` *(or contact the repository maintainer directly via GitHub profile)*
+- Use the subject line: `[SECURITY] Vyasen Vulnerability Report - <Brief Summary>`
 - If sharing sensitive proofs of concept or exploits, request an encryption key or encrypt with our designated PGP key before sending.
 
 ---

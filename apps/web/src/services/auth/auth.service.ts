@@ -10,7 +10,7 @@ import {
   type AuthEmailCodeRequest,
   type AuthEmailCodeVerification,
   type AuthGoogleCredential,
-} from "@school-sms/contracts";
+} from "@vyasen/contracts";
 
 import { apiRequest, apiRequestNoContent, ApiError } from "@/lib/api-client";
 

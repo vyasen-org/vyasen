@@ -18,7 +18,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import type { SchoolRole } from "@school-sms/contracts";
+import type { SchoolRole } from "@vyasen/contracts";
 
 import { roleLabels, roleNavigation } from "@/components/navigation-config";
 import { ElasticScroller } from "@/components/elastic-scroller";
@@ -107,7 +107,7 @@ function SidebarContents({
           {(!collapsed || horizontal) && (
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold tracking-tight">
-                School SMS
+                <img src="/static/app-icon.jpg" alt="Vyasen" className="h-6 w-6 mr-2 inline-block"/> Vyasen
               </span>
               {!horizontal && (hiddenMode || canToggleCollapsed) && (
                 <span className="block text-xs text-muted-foreground">

@@ -516,11 +516,11 @@ export function AuthModal({
                   <GraduationCap size={20} />
                 </span>
                 <span className="text-lg font-bold tracking-tight">
-                  School SMS
+                  Vyasen
                 </span>
               </div>
               <Dialog.Title className="text-xl font-semibold tracking-tight">
-                Welcome to School SMS
+                Welcome to Vyasen
               </Dialog.Title>
               <Dialog.Description
                 id="auth-dialog-description"

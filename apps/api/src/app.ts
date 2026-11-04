@@ -7,7 +7,7 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod";
 
-import { createDatabase } from "@school-sms/database";
+import { createDatabase } from "@vyasen/database";
 
 import type { AppConfig } from "./config";
 import { AppError } from "./errors";

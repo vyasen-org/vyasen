@@ -80,7 +80,7 @@ export function createDatabase(databaseUrl: string): Kysely<Database> {
         max: 10,
         idleTimeoutMillis: 30_000,
         connectionTimeoutMillis: 5_000,
-        application_name: "school-sms-api",
+        application_name: "vyasen-api",
       }),
     }),
   });

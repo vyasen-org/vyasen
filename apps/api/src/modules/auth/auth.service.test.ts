@@ -6,8 +6,8 @@ import test from "node:test";
 import { Migrator } from "kysely";
 import type { AppConfig } from "../../config";
 import { AppError } from "../../errors";
-import { createDatabase } from "@school-sms/database";
-import { PlatformMigrationProvider } from "@school-sms/database/migrations";
+import { createDatabase } from "@vyasen/database";
+import { PlatformMigrationProvider } from "@vyasen/database/migrations";
 import {
   createSessionToken,
   hashSessionToken,

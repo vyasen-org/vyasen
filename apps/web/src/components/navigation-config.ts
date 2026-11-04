@@ -9,7 +9,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import type { SchoolRole } from "@school-sms/contracts";
+import type { SchoolRole } from "@vyasen/contracts";
 
 export interface NavigationItem {
   label: string;

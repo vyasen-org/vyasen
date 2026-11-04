@@ -57,7 +57,7 @@ const environmentSchema = z.object({
   SMTP_SECURE: z.enum(["true", "false"]).default("false"),
   SMTP_USER: optionalText,
   SMTP_PASSWORD: optionalText,
-  SMTP_FROM: smtpFromSchema.default("no-reply@school-sms.example"),
+  SMTP_FROM: smtpFromSchema.default("no-reply@vyasen.example"),
 });
 
 const environment = environmentSchema.parse(process.env);

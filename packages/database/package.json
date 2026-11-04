@@ -1,5 +1,5 @@
 {
-  "name": "@school-sms/database",
+  "name": "@vyasen/database",
   "private": true,
   "type": "module",
   "exports": {
@@ -7,6 +7,7 @@
     "./migrations": "./src/migration-provider.ts"
   },
   "scripts": {
+    "db:migrate": "tsx src/migrate.ts",
     "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"

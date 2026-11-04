@@ -1,6 +1,6 @@
-# School SMS
+# Vyasen
 
-The School SMS monorepo uses pnpm workspaces and Turborepo. The web app uses
+The Vyasen monorepo uses pnpm workspaces and Turborepo. The web app uses
 React 19, TanStack Router and Query; the API uses Fastify 5 and Kysely with
 PostgreSQL.
 
