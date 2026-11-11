@@ -28,10 +28,10 @@ export function ElasticScroller() {
   const dragState = useRef<DragState | null>(null);
 
   useEffect(() => {
-    if (!preferences.elasticScrollerEnabled) {
-      setVisible(false);
-      return;
-    }
+    // When the elastic scroller is disabled there is nothing to set up.
+    // The component already renders null when disabled (line below), so
+    // we just skip registering the scroll listener.
+    if (!preferences.elasticScrollerEnabled) return;
     let hideTimer = 0;
     const onScroll = () => {
       const hasLongPage =

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -77,20 +78,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] =
     useState<UiPreferences>(readPreferences);
 
+  // Snapshot of preferences read at mount time, used by the one-shot theme
+  // rotation effect below. A ref avoids adding the full `preferences` object
+  // to that effect's dependency array (which would re-run it on every change).
+  const initialPreferencesRef = useRef(preferences);
+
   useEffect(() => {
-    if (!preferences.themeRotationEnabled) return;
+    const { themeRotationEnabled, themeRotationPool, colorTheme } =
+      initialPreferencesRef.current;
+    if (!themeRotationEnabled) return;
     try {
-      if (
-        window.sessionStorage.getItem("vyasen-theme-rotated") === "true"
-      ) {
+      if (window.sessionStorage.getItem("vyasen-theme-rotated") === "true") {
         return;
       }
-      const eligibleThemes = preferences.themeRotationPool.filter((theme) =>
+      const eligibleThemes = themeRotationPool.filter((theme) =>
         colorThemeIds.includes(theme),
       );
-      const themes = eligibleThemes.length
-        ? eligibleThemes
-        : [preferences.colorTheme];
+      const themes = eligibleThemes.length ? eligibleThemes : [colorTheme];
       const randomTheme = themes[Math.floor(Math.random() * themes.length)];
       window.sessionStorage.setItem("vyasen-theme-rotated", "true");
       setPreferences((current) => ({ ...current, colorTheme: randomTheme }));

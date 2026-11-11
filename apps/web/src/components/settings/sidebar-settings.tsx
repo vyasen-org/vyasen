@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -121,9 +121,14 @@ export function SidebarSettings() {
     };
   }, []);
 
-  useEffect(() => {
+  // Keep the custom-color draft in sync when preferences.sidebarIconColor
+  // changes externally (e.g. reset, another tab). This is intentional derived-
+  // state sync and is safe: the preference value is stable between renders.
+  const prevIconColor = useRef(preferences.sidebarIconColor);
+  if (prevIconColor.current !== preferences.sidebarIconColor) {
+    prevIconColor.current = preferences.sidebarIconColor;
     setCustomColorDraft(preferences.sidebarIconColor);
-  }, [preferences.sidebarIconColor]);
+  }
 
   const horizontal = isSmallScreen
     ? true
@@ -229,9 +234,7 @@ export function SidebarSettings() {
             ) : horizontal ? (
               <ChoiceCards
                 value={preferences.sidebarBehavior}
-                onChange={(value) =>
-                  updatePreference("sidebarBehavior", value)
-                }
+                onChange={(value) => updatePreference("sidebarBehavior", value)}
                 choices={[
                   {
                     id: "pinned",
@@ -248,9 +251,7 @@ export function SidebarSettings() {
             ) : (
               <ChoiceCards
                 value={preferences.sidebarBehavior}
-                onChange={(value) =>
-                  updatePreference("sidebarBehavior", value)
-                }
+                onChange={(value) => updatePreference("sidebarBehavior", value)}
                 choices={[
                   {
                     id: "pinned",
@@ -268,11 +269,11 @@ export function SidebarSettings() {
           </div>
           {!horizontal && canResizeSidebar && (
             <p className="mt-3 text-xs text-muted-foreground">
-              On medium screens and larger, drag a pinned sidebar edge—even
-              when collapsed—to resize. The maximum is 350 pixels up to 1024px
-              wide and 500 pixels on wider screens. Widths below 150 pixels
-              collapse automatically. Hidden sidebars use a fixed responsive
-              width so navigation labels remain visible.
+              On medium screens and larger, drag a pinned sidebar edge—even when
+              collapsed—to resize. The maximum is 350 pixels up to 1024px wide
+              and 500 pixels on wider screens. Widths below 150 pixels collapse
+              automatically. Hidden sidebars use a fixed responsive width so
+              navigation labels remain visible.
             </p>
           )}
           <div className="mt-5 border-t border-border pt-4">
@@ -301,9 +302,7 @@ export function SidebarSettings() {
                 key={choice.id}
                 type="button"
                 aria-pressed={selected}
-                onClick={() =>
-                  updatePreference("sidebarIconStyle", choice.id)
-                }
+                onClick={() => updatePreference("sidebarIconStyle", choice.id)}
                 className={`flex min-w-0 flex-col gap-4 rounded-xl border p-4 text-left transition-colors sm:flex-row sm:items-center sm:p-5 ${
                   selected
                     ? "border-accent bg-accent/10"
@@ -313,13 +312,9 @@ export function SidebarSettings() {
                 <span className="w-full shrink-0 rounded-xl bg-slate-950/70 p-3 sm:w-[42%] sm:max-w-[260px]">
                   {previewItems.map(({ label, icon: Icon }, index) => {
                     const previewColor = multicolor
-                      ? [
-                          "#1683e3",
-                          "#a855f7",
-                          "#22c55e",
-                          "#f39200",
-                          "#ef476f",
-                        ][index]
+                      ? ["#1683e3", "#a855f7", "#22c55e", "#f39200", "#ef476f"][
+                          index
+                        ]
                       : preferences.sidebarIconColorMode === "custom"
                         ? preferences.sidebarIconColor
                         : undefined;
@@ -338,9 +333,7 @@ export function SidebarSettings() {
                         <Icon
                           className={`size-5 shrink-0 ${previewIconClass}`}
                           style={
-                            previewColor
-                              ? { color: previewColor }
-                              : undefined
+                            previewColor ? { color: previewColor } : undefined
                           }
                         />
                         <span className="truncate">{label}</span>
@@ -466,9 +459,7 @@ export function SidebarSettings() {
                         }`}
                         style={{ backgroundColor: value }}
                       >
-                        {selected && (
-                          <Check size={15} className="text-white" />
-                        )}
+                        {selected && <Check size={15} className="text-white" />}
                       </span>
                     </button>
                   );
@@ -508,7 +499,9 @@ export function SidebarSettings() {
                       updatePreference("sidebarIconColor", value);
                     }
                   }}
-                  onBlur={() => setCustomColorDraft(preferences.sidebarIconColor)}
+                  onBlur={() =>
+                    setCustomColorDraft(preferences.sidebarIconColor)
+                  }
                   className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
                 />
                 <input
