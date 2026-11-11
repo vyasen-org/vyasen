@@ -1,0 +1,23 @@
+# Maintainers allowed to push directly to develop.
+# All other contributors must open a Pull Request.
+develop_push_allowed="vijay.jadhav1997.dev@gmail.com"
+push_email=$(git config user.email)
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+  if [ "$remote_ref" = "refs/heads/develop" ]; then
+    case " $develop_push_allowed " in
+      *" $push_email "*) ;;
+      *)
+        echo "Direct push to the develop branch is not allowed."
+        echo "Please use a feature/fix/chore branch and open a Pull Request."
+        exit 1
+        ;;
+    esac
+  fi
+done
+
+pnpm --filter @vyasen/api test || {
+  echo "API tests failed. Fix them before pushing."
+  exit 1
+}
+
