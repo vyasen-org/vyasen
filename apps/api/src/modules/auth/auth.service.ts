@@ -1,10 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { Kysely } from "kysely";
 
-import type {
-  AuthSession,
-  AuthUser,
-} from "@vyasen/contracts";
+import type { AuthSession, AuthUser } from "@vyasen/contracts";
 import type { Database } from "@vyasen/database";
 
 import type { AppConfig } from "../../config";
@@ -65,7 +62,11 @@ export class AuthService {
 
   async requestEmailCode(emailInput: string, ipAddress: string) {
     const email = normalizeEmail(emailInput);
-    await this.enforceRateLimit(`email-code-ip:${ipAddress}`, 20, 60 * 60 * 1000);
+    await this.enforceRateLimit(
+      `email-code-ip:${ipAddress}`,
+      20,
+      60 * 60 * 1000,
+    );
     await this.enforceRateLimit(`email-code-email:${email}`, 5, 60 * 60 * 1000);
     await this.enforceRateLimit(
       `email-code-cooldown:${email}`,
@@ -81,11 +82,13 @@ export class AuthService {
       this.dependencies.config.authCodeHashSecret,
     );
 
-    const challengeId = await this.dependencies.db.transaction().execute(async (trx) => {
-      const repository = createAuthRepository(trx);
-      await repository.invalidateOpenCodes(trx, email, now);
-      return repository.insertEmailCode(trx, email, codeHash, expiresAt);
-    });
+    const challengeId = await this.dependencies.db
+      .transaction()
+      .execute(async (trx) => {
+        const repository = createAuthRepository(trx);
+        await repository.invalidateOpenCodes(trx, email, now);
+        return repository.insertEmailCode(trx, email, codeHash, expiresAt);
+      });
 
     try {
       await this.dependencies.emailProvider.sendSignInCode(email, code, 10);
@@ -117,117 +120,127 @@ export class AuthService {
       30,
       15 * 60 * 1000,
     );
-    await this.enforceRateLimit(`email-verify-email:${email}`, 20, 60 * 60 * 1000);
+    await this.enforceRateLimit(
+      `email-verify-email:${email}`,
+      20,
+      60 * 60 * 1000,
+    );
 
     const now = new Date();
     const sessionToken = createSessionToken();
-    const outcome = await this.dependencies.db.transaction().execute(async (trx) => {
-      const repository = createAuthRepository(trx);
-      const verification = await repository.findEmailCodeForUpdate(
-        trx,
-        challengeId,
-        email,
-      );
-
-      if (
-        !verification ||
-        verification.consumedAt ||
-        verification.expiresAt <= now ||
-        verification.attemptCount >= 5
-      ) {
-        return { kind: "invalid" } as const;
-      }
-
-      const submittedHash = hashVerificationCode(
-        code,
-        this.dependencies.config.authCodeHashSecret,
-      );
-      if (!hashesMatch(verification.codeHash, submittedHash)) {
-        const nextAttemptCount = verification.attemptCount + 1;
-        await repository.updateEmailCodeAttempt(
+    const outcome = await this.dependencies.db
+      .transaction()
+      .execute(async (trx) => {
+        const repository = createAuthRepository(trx);
+        const verification = await repository.findEmailCodeForUpdate(
           trx,
-          verification.id,
-          nextAttemptCount,
-          nextAttemptCount >= 5 ? now : null,
-        );
-        return { kind: "invalid" } as const;
-      }
-
-      await repository.consumeEmailCode(trx, verification.id, now);
-
-      let user = await repository.findUserByEmail(trx, email);
-      if (!user) {
-        const created = await repository.insertUser(trx, {
+          challengeId,
           email,
-          emailVerifiedAt: now,
-          name: null,
-          image: null,
-        });
-        user = created
-          ? await repository.findUserById(trx, created.id)
-          : await repository.findUserByEmail(trx, email);
-      }
-
-      if (!user) {
-        throw new Error("A verified email user could not be loaded.");
-      }
-      if (user.status !== "active") {
-        return { kind: "account_disabled" } as const;
-      }
-
-      const existingIdentity = await repository.findIdentity(trx, "email", email);
-      if (existingIdentity && existingIdentity.user_id !== user.id) {
-        return { kind: "identity_conflict" } as const;
-      }
-
-      if (!existingIdentity) {
-        const linkedEmail = await repository.findUserProviderIdentity(
-          trx,
-          user.id,
-          "email",
         );
-        if (linkedEmail && linkedEmail.provider_subject !== email) {
+
+        if (
+          !verification ||
+          verification.consumedAt ||
+          verification.expiresAt <= now ||
+          verification.attemptCount >= 5
+        ) {
+          return { kind: "invalid" } as const;
+        }
+
+        const submittedHash = hashVerificationCode(
+          code,
+          this.dependencies.config.authCodeHashSecret,
+        );
+        if (!hashesMatch(verification.codeHash, submittedHash)) {
+          const nextAttemptCount = verification.attemptCount + 1;
+          await repository.updateEmailCodeAttempt(
+            trx,
+            verification.id,
+            nextAttemptCount,
+            nextAttemptCount >= 5 ? now : null,
+          );
+          return { kind: "invalid" } as const;
+        }
+
+        await repository.consumeEmailCode(trx, verification.id, now);
+
+        let user = await repository.findUserByEmail(trx, email);
+        if (!user) {
+          const created = await repository.insertUser(trx, {
+            email,
+            emailVerifiedAt: now,
+            name: null,
+            image: null,
+          });
+          user = created
+            ? await repository.findUserById(trx, created.id)
+            : await repository.findUserByEmail(trx, email);
+        }
+
+        if (!user) {
+          throw new Error("A verified email user could not be loaded.");
+        }
+        if (user.status !== "active") {
+          return { kind: "account_disabled" } as const;
+        }
+
+        const existingIdentity = await repository.findIdentity(
+          trx,
+          "email",
+          email,
+        );
+        if (existingIdentity && existingIdentity.user_id !== user.id) {
           return { kind: "identity_conflict" } as const;
         }
-        const insertedIdentity = await repository.insertIdentity(
-          trx,
-          user.id,
-          "email",
-          email,
-        );
-        if (!insertedIdentity) {
-          const concurrentIdentity = await repository.findIdentity(
+
+        if (!existingIdentity) {
+          const linkedEmail = await repository.findUserProviderIdentity(
             trx,
+            user.id,
+            "email",
+          );
+          if (linkedEmail && linkedEmail.provider_subject !== email) {
+            return { kind: "identity_conflict" } as const;
+          }
+          const insertedIdentity = await repository.insertIdentity(
+            trx,
+            user.id,
             "email",
             email,
           );
-          if (concurrentIdentity?.user_id !== user.id) {
-            return { kind: "identity_conflict" } as const;
+          if (!insertedIdentity) {
+            const concurrentIdentity = await repository.findIdentity(
+              trx,
+              "email",
+              email,
+            );
+            if (concurrentIdentity?.user_id !== user.id) {
+              return { kind: "identity_conflict" } as const;
+            }
           }
         }
-      }
 
-      await repository.markEmailVerified(trx, user.id, now);
-      await repository.updateLoginTime(trx, user.id, now);
-      const sessionId = await repository.createSession(trx, {
-        userId: user.id,
-        tokenHash: hashSessionToken(sessionToken),
-        metadata,
-        now,
-        expiresAt: new Date(now.getTime() + sessionLifetimeMs),
+        await repository.markEmailVerified(trx, user.id, now);
+        await repository.updateLoginTime(trx, user.id, now);
+        const sessionId = await repository.createSession(trx, {
+          userId: user.id,
+          tokenHash: hashSessionToken(sessionToken),
+          metadata,
+          now,
+          expiresAt: new Date(now.getTime() + sessionLifetimeMs),
+        });
+        const refreshedUser = await repository.findUserById(trx, user.id);
+
+        if (!refreshedUser) {
+          throw new Error("A signed-in user could not be loaded.");
+        }
+
+        return {
+          kind: "success",
+          sessionId,
+          user: toAuthUser(refreshedUser),
+        } as const;
       });
-      const refreshedUser = await repository.findUserById(trx, user.id);
-
-      if (!refreshedUser) {
-        throw new Error("A signed-in user could not be loaded.");
-      }
-
-      return {
-        kind: "success",
-        sessionId,
-        user: toAuthUser(refreshedUser),
-      } as const;
-    });
 
     if (outcome.kind === "invalid") throw invalidCodeError();
     if (outcome.kind === "account_disabled") {
@@ -296,7 +309,11 @@ export class AuthService {
       oauthState.state !== state ||
       oauthState.expiresAt <= Date.now()
     ) {
-      throw new AppError(400, "google_state_invalid", "Google sign-in expired. Please try again.");
+      throw new AppError(
+        400,
+        "google_state_invalid",
+        "Google sign-in expired. Please try again.",
+      );
     }
 
     const identity = await provider.exchangeCode(
@@ -313,7 +330,11 @@ export class AuthService {
     if (!clientId || !this.dependencies.googleProvider) {
       return { clientId: null, nonce: null, expiresInSeconds: 0 };
     }
-    await this.enforceRateLimit(`google-nonce-ip:${ipAddress}`, 30, 60 * 60 * 1000);
+    await this.enforceRateLimit(
+      `google-nonce-ip:${ipAddress}`,
+      30,
+      60 * 60 * 1000,
+    );
     const nonce = createOAuthNonce();
     const now = new Date();
     await this.repository.insertGoogleNonce(
@@ -340,10 +361,22 @@ export class AuthService {
     );
     const identity = await provider.verifyOneTapCredential(credential);
     if (!identity.nonce) {
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be verified.",
+      );
     }
-    const result = await this.signInWithGoogleIdentity(identity, metadata, true);
-    return { user: result.user, sessionId: result.sessionId, token: result.token };
+    const result = await this.signInWithGoogleIdentity(
+      identity,
+      metadata,
+      true,
+    );
+    return {
+      user: result.user,
+      sessionId: result.sessionId,
+      token: result.token,
+    };
   }
 
   async linkGoogleIdentity(
@@ -352,73 +385,91 @@ export class AuthService {
     ipAddress: string,
   ): Promise<void> {
     const provider = this.requireGoogleProvider();
-    await this.enforceRateLimit(`google-link-ip:${ipAddress}`, 20, 15 * 60 * 1000);
+    await this.enforceRateLimit(
+      `google-link-ip:${ipAddress}`,
+      20,
+      15 * 60 * 1000,
+    );
     const identity = await provider.verifyOneTapCredential(credential);
     if (!identity.nonce) {
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be verified.",
+      );
     }
     const nonce = identity.nonce;
 
     const now = new Date();
-    const result = await this.dependencies.db.transaction().execute(async (trx) => {
-      const repository = createAuthRepository(trx);
-      const nonceConsumed = await repository.consumeGoogleNonce(
-        trx,
-        hashSessionToken(nonce),
-        now,
-      );
-      if (!nonceConsumed) return "invalid_nonce" as const;
+    const result = await this.dependencies.db
+      .transaction()
+      .execute(async (trx) => {
+        const repository = createAuthRepository(trx);
+        const nonceConsumed = await repository.consumeGoogleNonce(
+          trx,
+          hashSessionToken(nonce),
+          now,
+        );
+        if (!nonceConsumed) return "invalid_nonce" as const;
 
-      const user = await repository.findUserByIdForUpdate(trx, userId);
-      if (!user || user.status !== "active") return "account_unavailable" as const;
+        const user = await repository.findUserByIdForUpdate(trx, userId);
+        if (!user || user.status !== "active")
+          return "account_unavailable" as const;
 
-      const linkedIdentity = await repository.findIdentity(
-        trx,
-        "google",
-        identity.subject,
-      );
-      if (linkedIdentity) {
-        return linkedIdentity.user_id === userId
-          ? ("linked" as const)
-          : ("identity_in_use" as const);
-      }
-
-      const userGoogleIdentity = await repository.findUserProviderIdentity(
-        trx,
-        userId,
-        "google",
-      );
-      if (userGoogleIdentity) return "google_already_linked" as const;
-
-      const inserted = await repository.insertIdentity(
-        trx,
-        userId,
-        "google",
-        identity.subject,
-      );
-      if (!inserted) {
-        const concurrentIdentity = await repository.findIdentity(
+        const linkedIdentity = await repository.findIdentity(
           trx,
           "google",
           identity.subject,
         );
-        return concurrentIdentity?.user_id === userId
-          ? ("linked" as const)
-          : ("identity_in_use" as const);
-      }
+        if (linkedIdentity) {
+          return linkedIdentity.user_id === userId
+            ? ("linked" as const)
+            : ("identity_in_use" as const);
+        }
 
-      return "linked" as const;
-    });
+        const userGoogleIdentity = await repository.findUserProviderIdentity(
+          trx,
+          userId,
+          "google",
+        );
+        if (userGoogleIdentity) return "google_already_linked" as const;
+
+        const inserted = await repository.insertIdentity(
+          trx,
+          userId,
+          "google",
+          identity.subject,
+        );
+        if (!inserted) {
+          const concurrentIdentity = await repository.findIdentity(
+            trx,
+            "google",
+            identity.subject,
+          );
+          return concurrentIdentity?.user_id === userId
+            ? ("linked" as const)
+            : ("identity_in_use" as const);
+        }
+
+        return "linked" as const;
+      });
 
     if (result === "invalid_nonce") {
-      console.log("Jay Jay Shree Dnyanoba Mauli TUkaram");
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be verified.",
+      );
     }
     if (result === "account_unavailable") {
       throw new AppError(401, "unauthorized", "Sign in to link an account.");
     }
     if (result === "identity_in_use" || result === "google_already_linked") {
-      throw new AppError(409, "google_identity_conflict", "A Google account is already linked.");
+      throw new AppError(
+        409,
+        "google_identity_conflict",
+        "A Google account is already linked.",
+      );
     }
   }
 
@@ -446,7 +497,10 @@ export class AuthService {
     return { user: toAuthUser(user), sessionId: session.id };
   }
 
-  async listSessions(userId: string, currentSessionId: string): Promise<AuthSession[]> {
+  async listSessions(
+    userId: string,
+    currentSessionId: string,
+  ): Promise<AuthSession[]> {
     const sessions = await this.repository.listSessions(userId, new Date());
     return sessions.map((session) => ({
       ...session,
@@ -492,102 +546,116 @@ export class AuthService {
   ): Promise<GoogleSignInResult> {
     const now = new Date();
     const token = createSessionToken();
-    const outcome = await this.dependencies.db.transaction().execute(async (trx) => {
-      const repository = createAuthRepository(trx);
+    const outcome = await this.dependencies.db
+      .transaction()
+      .execute(async (trx) => {
+        const repository = createAuthRepository(trx);
 
-      if (consumeNonce) {
-        if (!identity.nonce) return { kind: "invalid_nonce" } as const;
-        const consumed = await repository.consumeGoogleNonce(
-          trx,
-          hashSessionToken(identity.nonce),
-          now,
-        );
-        if (!consumed) return { kind: "invalid_nonce" } as const;
-      }
-
-      let linkedIdentity = await repository.findIdentity(
-        trx,
-        "google",
-        identity.subject,
-      );
-      let user: UserRecord | undefined;
-
-      if (linkedIdentity) {
-        user = await repository.findUserById(trx, linkedIdentity.user_id);
-      } else {
-        const existingEmailUser = await repository.findUserByEmail(
-          trx,
-          identity.email,
-        );
-        if (existingEmailUser) {
-          return { kind: "identity_link_required" } as const;
+        if (consumeNonce) {
+          if (!identity.nonce) return { kind: "invalid_nonce" } as const;
+          const consumed = await repository.consumeGoogleNonce(
+            trx,
+            hashSessionToken(identity.nonce),
+            now,
+          );
+          if (!consumed) return { kind: "invalid_nonce" } as const;
         }
 
-        const insertedUser = await repository.insertUser(trx, {
-          email: identity.email,
-          emailVerifiedAt: now,
-          name: identity.name,
-          image: identity.image,
-        });
+        let linkedIdentity = await repository.findIdentity(
+          trx,
+          "google",
+          identity.subject,
+        );
+        let user: UserRecord | undefined;
 
-        if (!insertedUser) {
-          linkedIdentity = await repository.findIdentity(
-            trx,
-            "google",
-            identity.subject,
-          );
-          if (!linkedIdentity) {
-            return { kind: "identity_link_required" } as const;
-          }
+        if (linkedIdentity) {
           user = await repository.findUserById(trx, linkedIdentity.user_id);
         } else {
-          const insertedIdentity = await repository.insertIdentity(
+          const existingEmailUser = await repository.findUserByEmail(
             trx,
-            insertedUser.id,
-            "google",
-            identity.subject,
+            identity.email,
           );
+          if (existingEmailUser) {
+            return { kind: "identity_link_required" } as const;
+          }
 
-          if (!insertedIdentity) {
-            const concurrentIdentity = await repository.findIdentity(
+          const insertedUser = await repository.insertUser(trx, {
+            email: identity.email,
+            emailVerifiedAt: now,
+            name: identity.name,
+            image: identity.image,
+          });
+
+          if (!insertedUser) {
+            linkedIdentity = await repository.findIdentity(
               trx,
               "google",
               identity.subject,
             );
-            await repository.deleteUser(trx, insertedUser.id);
-            if (!concurrentIdentity) {
-              throw new Error("A concurrent Google identity could not be loaded.");
+            if (!linkedIdentity) {
+              return { kind: "identity_link_required" } as const;
             }
-            user = await repository.findUserById(trx, concurrentIdentity.user_id);
+            user = await repository.findUserById(trx, linkedIdentity.user_id);
           } else {
-            user = await repository.findUserById(trx, insertedUser.id);
+            const insertedIdentity = await repository.insertIdentity(
+              trx,
+              insertedUser.id,
+              "google",
+              identity.subject,
+            );
+
+            if (!insertedIdentity) {
+              const concurrentIdentity = await repository.findIdentity(
+                trx,
+                "google",
+                identity.subject,
+              );
+              await repository.deleteUser(trx, insertedUser.id);
+              if (!concurrentIdentity) {
+                throw new Error(
+                  "A concurrent Google identity could not be loaded.",
+                );
+              }
+              user = await repository.findUserById(
+                trx,
+                concurrentIdentity.user_id,
+              );
+            } else {
+              user = await repository.findUserById(trx, insertedUser.id);
+            }
           }
         }
-      }
 
-      if (!user) throw new Error("A Google-authenticated user could not be loaded.");
-      if (user.status !== "active") return { kind: "account_disabled" } as const;
+        if (!user)
+          throw new Error("A Google-authenticated user could not be loaded.");
+        if (user.status !== "active")
+          return { kind: "account_disabled" } as const;
 
-      await repository.updateLoginTime(trx, user.id, now);
-      const sessionId = await repository.createSession(trx, {
-        userId: user.id,
-        tokenHash: hashSessionToken(token),
-        metadata,
-        now,
-        expiresAt: new Date(now.getTime() + sessionLifetimeMs),
+        await repository.updateLoginTime(trx, user.id, now);
+        const sessionId = await repository.createSession(trx, {
+          userId: user.id,
+          tokenHash: hashSessionToken(token),
+          metadata,
+          now,
+          expiresAt: new Date(now.getTime() + sessionLifetimeMs),
+        });
+        const refreshedUser = await repository.findUserById(trx, user.id);
+        if (!refreshedUser)
+          throw new Error("A signed-in user could not be loaded.");
+
+        return {
+          kind: "success",
+          sessionId,
+          user: toAuthUser(refreshedUser),
+        } as const;
       });
-      const refreshedUser = await repository.findUserById(trx, user.id);
-      if (!refreshedUser) throw new Error("A signed-in user could not be loaded.");
-
-      return {
-        kind: "success",
-        sessionId,
-        user: toAuthUser(refreshedUser),
-      } as const;
-    });
 
     if (outcome.kind === "invalid_nonce") {
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be verified.",
+      );
     }
     if (outcome.kind === "identity_link_required") {
       throw new AppError(
@@ -608,7 +676,11 @@ export class AuthService {
     };
   }
 
-  private async enforceRateLimit(key: string, maxRequests: number, windowMs: number) {
+  private async enforceRateLimit(
+    key: string,
+    maxRequests: number,
+    windowMs: number,
+  ) {
     const now = new Date();
     const bucketHash = hashRateLimitKey(
       key,
@@ -621,7 +693,8 @@ export class AuthService {
       maxRequests,
     );
     const entry = result.rows[0];
-    if (!entry) throw new Error("The authentication rate limit could not be checked.");
+    if (!entry)
+      throw new Error("The authentication rate limit could not be checked.");
     if (entry.request_count > maxRequests) {
       const retryAfterSeconds = Math.max(
         1,
@@ -650,7 +723,11 @@ export class AuthService {
   }
 
   private validateReturnTo(candidate: string): string {
-    if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
+    if (
+      !candidate.startsWith("/") ||
+      candidate.startsWith("//") ||
+      candidate.includes("\\")
+    ) {
       return "/";
     }
     try {

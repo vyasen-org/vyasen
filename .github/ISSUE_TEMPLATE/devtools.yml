@@ -1,0 +1,67 @@
+name: "🛠️ Developer Tools & Setup"
+description: "Report issues with local development setup, pnpm scripts, database migrations, or the CI/CD pipeline."
+title: "[DevTools]: "
+labels: ["dx", "tooling"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report security vulnerabilities in public issues.**
+        Please read our [Security Policy](https://github.com/vyasen-org/vyasen/blob/develop/SECURITY.md) and report suspected vulnerabilities privately.
+
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+
+  - type: dropdown
+    id: affected-tool
+    attributes:
+      label: Which setup step or tool is having issues?
+      options:
+        - "Getting started / First-time setup"
+        - "Docker / PostgreSQL (compose.yaml)"
+        - "Running dev servers (pnpm dev)"
+        - "Database migrations (pnpm db:migrate)"
+        - "Building (pnpm build)"
+        - "Testing (pnpm test)"
+        - "Linting / ESLint / Prettier"
+        - "Husky git hooks"
+        - "CI/CD pipeline (GitHub Actions)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: os-setup
+    attributes:
+      label: Your OS, Node.js version, and pnpm version
+      placeholder: "e.g. Ubuntu 24.04 x86_64, Node v24.18.0, pnpm 12.16.1"
+    validations:
+      required: true
+
+  - type: input
+    id: command-run
+    attributes:
+      label: What command did you run?
+      placeholder: "e.g. pnpm dev or pnpm db:migrate"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-trace
+    attributes:
+      label: Error output / stack trace
+      description: Paste the exact terminal output or error message.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-tried
+    attributes:
+      label: What did you try to fix it?
+      description: Any troubleshooting steps you attempted before opening this issue.
