@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Bell,
@@ -101,11 +101,7 @@ function NotificationToggle({
           {description}
         </p>
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onChange}
-        aria-label={label}
-      />
+      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
   );
 }
@@ -115,15 +111,14 @@ export function NotificationsSettings() {
   const navigate = useNavigate();
   const user = sessionQuery.data?.user;
   const userId = user?.id;
-  const [preferences, setPreferences] = useState<NotificationPreferences>(
-    () =>
-      userId
-        ? readNotificationPreferences(userId)
-        : { ...notificationPreferenceDefaults },
+  const [preferences, setPreferences] = useState<NotificationPreferences>(() =>
+    userId
+      ? readNotificationPreferences(userId)
+      : { ...notificationPreferenceDefaults },
   );
-  const [saveStatus, setSaveStatus] = useState<
-    "saved" | "saving" | "error"
-  >("saved");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">(
+    "saved",
+  );
 
   useEffect(() => {
     if (sessionQuery.isSuccess && !user) {
@@ -131,9 +126,14 @@ export function NotificationsSettings() {
     }
   }, [navigate, sessionQuery.isSuccess, user]);
 
-  useEffect(() => {
+  // Seed preferences from localStorage when the user ID first becomes known
+  // (session loads after the initial render). Using a ref-during-render pattern
+  // avoids a redundant re-render that set-state-in-effect would cause.
+  const prevUserId = useRef(userId);
+  if (prevUserId.current !== userId) {
+    prevUserId.current = userId;
     if (userId) setPreferences(readNotificationPreferences(userId));
-  }, [userId]);
+  }
 
   function updatePreference(key: NotificationPreference, value: boolean) {
     if (!userId) return;
@@ -186,12 +186,20 @@ export function NotificationsSettings() {
           >
             {saveStatus === "error" ? (
               <>
-                <ShieldCheck aria-hidden="true" className="text-rose-400" size={14} />
+                <ShieldCheck
+                  aria-hidden="true"
+                  className="text-rose-400"
+                  size={14}
+                />
                 Could not save on this device
               </>
             ) : (
               <>
-                <Check aria-hidden="true" className="text-emerald-400" size={14} />
+                <Check
+                  aria-hidden="true"
+                  className="text-emerald-400"
+                  size={14}
+                />
                 {saveStatus === "saving" ? "Saving..." : "Saved on this device"}
               </>
             )}
