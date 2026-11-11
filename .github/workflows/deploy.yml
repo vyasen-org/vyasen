@@ -89,9 +89,18 @@ jobs:
             exit 1
           }
 
+          # Render deploy hooks already contain a ?key= query string.
+          # Render expects &ref=<commit-sha> to deploy a specific commit (not ?deploySHA=).
+          HOOK_URL="${RENDER_DEPLOY_HOOK}"
+          if [[ "${HOOK_URL}" == *"?"* ]]; then
+            HOOK_URL="${HOOK_URL}&ref=${DEPLOY_SHA}"
+          else
+            HOOK_URL="${HOOK_URL}?ref=${DEPLOY_SHA}"
+          fi
+
           echo "Triggering Render deploy for commit ${DEPLOY_SHA:0:7}..."
           curl --fail --silent --show-error \
-            -X POST "${RENDER_DEPLOY_HOOK}?deploySHA=${DEPLOY_SHA}" \
+            -X POST "${HOOK_URL}" \
             -o /dev/null
 
           echo "✓ Render deploy triggered. Monitor progress at https://dashboard.render.com"
@@ -140,8 +149,7 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name=vyasen-web
+        run: npx wrangler pages deploy apps/web/dist --project-name=vyasen-web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
