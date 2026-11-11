@@ -1,0 +1,10 @@
+# Disables blank issues for external contributors. GitHub automatically keeps
+# the blank issue option visible for repository members and maintainers.
+blank_issues_enabled: false
+contact_links:
+  - name: "🌐 Live Application"
+    url: "https://vyasen.com"
+    about: "Explore the live Vyasen platform."
+  - name: "🔒 Security Vulnerabilities"
+    url: "https://github.com/vyasen-org/vyasen/security/advisories/new"
+    about: "Report sensitive security vulnerabilities privately here — never as a public issue."
