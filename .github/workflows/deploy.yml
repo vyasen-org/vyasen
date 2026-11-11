@@ -106,10 +106,10 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      deployments: write # needed for the Cloudflare Pages action to post deployment status
+      deployments: write # needed for Cloudflare Pages to post deployment status
     environment:
       name: development
-      url: https://vyasen.com
+      url: https://dev.vyasen.com
 
     steps:
       - name: Check out repository
@@ -140,11 +140,8 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: vyasen-web
-          directory: apps/web/dist
-          # Posts deployment status as a commit check on the GitHub PR/commit.
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/web/dist --project-name=vyasen-web
