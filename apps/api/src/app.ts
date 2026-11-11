@@ -136,6 +136,12 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     config,
   });
 
+  // Health check endpoint — used by Render, monitoring tools, and the CI/CD
+  // pipeline to verify the API has started successfully after a deploy.
+  app.get("/api/v1/health", async (_request, reply) => {
+    return reply.code(200).send({ status: "ok" });
+  });
+
   app.addHook("onClose", async () => {
     await db.destroy();
   });
