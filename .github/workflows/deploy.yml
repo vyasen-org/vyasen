@@ -23,7 +23,7 @@ jobs:
   # against the unchanged schema.
   migrate:
     name: Run database migrations
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: development
 
@@ -69,7 +69,7 @@ jobs:
   deploy-api:
     name: Deploy API → Render
     needs: migrate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment:
       name: development
@@ -102,11 +102,11 @@ jobs:
   deploy-web:
     name: Deploy Web → Cloudflare Pages
     needs: migrate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
-      deployments: write # needed for Cloudflare Pages to post deployment status
+      deployments: write # needed for the Cloudflare Pages action to post deployment status
     environment:
       name: development
       url: https://dev.vyasen.com
