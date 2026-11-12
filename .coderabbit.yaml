@@ -1,11 +1,57 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en"
+early_access: false
+
 reviews:
+  profile: "chill" # Balanced feedback, avoiding unnecessary noise
+  high_level_summary: true
+  poem: false # Professional output for engineering logs
+
   pre_merge_checks:
     # This TypeScript/React codebase relies on types, explicit names, and focused
     # comments instead of requiring docstrings on every touched function.
     docstrings:
       mode: off
+
   auto_review:
     enabled: true
     auto_incremental_review: true
     base_branches:
       - "develop"
+
+  # Exclude lock files, build outputs, and dependencies from being reviewed
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "**/.turbo/**"
+    - "!**/*.gen.ts" # Exclude auto-generated code if applicable
+
+  # Tailored review focuses based on your monorepo layers
+  path_instructions:
+    - path: "apps/api/**"
+      instructions: |
+        - Verify that all incoming request bodies, query params, and headers are strictly validated using Zod schemas.
+        - Ensure authentication middleware properly checks active database sessions and enforces user identity.
+        - Flag any raw SQL strings or queries that bypass Kysely type safety.
+        - Verify that tenant/school context scopes are explicitly enforced on database queries.
+
+    - path: "packages/database/**"
+      instructions: |
+        - Review database migration files for safety, backward compatibility, and proper indexes.
+        - Ensure foreign key constraints and cascade rules are correctly set up.
+        - Check Kysely query builders for performance bottlenecks or missing filters.
+
+    - path: "apps/web/**"
+      instructions: |
+        - Ensure shadcn/ui and Radix UI component props maintain accessibility (a11y) standards (ARIA attributes, keyboard navigation).
+        - Verify that React Hook Form elements are tightly bound with shared Zod schemas from packages/contracts.
+        - Check TanStack Query implementations for proper error handling, query keys, and cache invalidation.
+
+    - path: "packages/contracts/**"
+      instructions: |
+        - Ensure all shared Zod schemas and TypeScript types are strict and properly exported for both frontend and backend consumption.
+
+chat:
+  auto_reply: true # Allows interactive conversation with CodeRabbit on PR comments
