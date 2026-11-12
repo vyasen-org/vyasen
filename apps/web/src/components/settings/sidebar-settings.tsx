@@ -149,7 +149,7 @@ export function SidebarSettings() {
           <p className="mt-1 text-xs text-muted-foreground">
             {isSmallScreen
               ? "Choose the top or bottom position for small screens."
-              : "Choose where the school navigation appears on larger screens."}
+              : "Choose where the institution navigation appears on larger screens."}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {positionChoices.map(({ id, label, detail, icon: Icon }) => (
@@ -524,7 +524,7 @@ export function SidebarSettings() {
 
       <SettingsSection
         title="Menu behavior"
-        description="Tune how navigation works in your school workspace."
+        description="Tune how navigation works in your institution workspace."
       >
         <SettingToggle
           label="Show keyboard shortcuts"

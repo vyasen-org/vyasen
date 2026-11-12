@@ -1,10 +1,14 @@
 import dotenv from "dotenv";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 dotenv.config({
-  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env"),
+  path: path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../../.env",
+  ),
   quiet: true,
 });
 
@@ -12,31 +16,44 @@ const strongSecret = z
   .string()
   .min(32)
   .refine(
-    (value) =>
-      !/change[\s_-]?me|replace[\s_-]?this/i.test(value),
+    (value) => !/change[\s_-]?me|replace[\s_-]?this/i.test(value),
     "Replace the example value with a randomly generated secret.",
   );
 
 const optionalText = z.preprocess(
   (value) =>
-    typeof value === "string" && value.trim() === ""
-      ? undefined
-      : value,
+    typeof value === "string" && value.trim() === "" ? undefined : value,
   z.string().trim().min(1).optional(),
 );
 
-const smtpFromSchema = z.string().trim().refine((value) => {
-  if (z.email().safeParse(value).success) return true;
-  const namedAddress = /^([^<>\r\n]+?)\s*<([^<>\r\n]+)>$/.exec(value);
-  return Boolean(
-    namedAddress?.[1]?.trim() &&
+const appNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .refine(
+    (value) => !/[\r\n]/.test(value),
+    "APP_NAME must not contain line breaks.",
+  );
+
+const smtpFromSchema = z
+  .string()
+  .trim()
+  .refine((value) => {
+    if (z.email().safeParse(value).success) return true;
+    const namedAddress = /^([^<>\r\n]+?)\s*<([^<>\r\n]+)>$/.exec(value);
+    return Boolean(
+      namedAddress?.[1]?.trim() &&
       namedAddress[2] &&
       z.email().safeParse(namedAddress[2]).success,
-  );
-}, "SMTP_FROM must be an email address or a display name followed by an email address.");
+    );
+  }, "SMTP_FROM must be an email address or a display name followed by an email address.");
 
 const environmentSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+  APP_NAME: appNameSchema.default("Vyasen"),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   API_HOST: z.string().trim().min(1).default("127.0.0.1"),
   API_PUBLIC_ORIGIN: z.url().default("http://localhost:4000"),
@@ -45,7 +62,6 @@ const environmentSchema = z.object({
   AUTH_CODE_HASH_SECRET: strongSecret,
   AUTH_STATE_SECRET: strongSecret,
   AUTH_RATE_LIMIT_SECRET: strongSecret,
-  SESSION_COOKIE_NAME: z.string().trim().min(1).default("school_sms_session"),
   SESSION_COOKIE_DOMAIN: optionalText,
   SESSION_COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]).default("lax"),
   TRUST_PROXY: z.string().default(""),
@@ -61,12 +77,27 @@ const environmentSchema = z.object({
 });
 
 const environment = environmentSchema.parse(process.env);
+const appNameCookiePrefix =
+  environment.APP_NAME.normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") ||
+  `app_${createHash("sha256").update(environment.APP_NAME).digest("hex").slice(0, 12)}`;
 
-if (Boolean(environment.GOOGLE_CLIENT_ID) !== Boolean(environment.GOOGLE_CLIENT_SECRET)) {
-  throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.");
+if (
+  Boolean(environment.GOOGLE_CLIENT_ID) !==
+  Boolean(environment.GOOGLE_CLIENT_SECRET)
+) {
+  throw new Error(
+    "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.",
+  );
 }
 
-if (environment.SESSION_COOKIE_SAME_SITE === "none" && environment.NODE_ENV !== "production") {
+if (
+  environment.SESSION_COOKIE_SAME_SITE === "none" &&
+  environment.NODE_ENV !== "production"
+) {
   throw new Error("SameSite=None cookies may only be used in production.");
 }
 
@@ -99,8 +130,10 @@ if (
   );
 }
 
-if (new URL(environment.DATABASE_URL).protocol !== "postgresql:" &&
-    new URL(environment.DATABASE_URL).protocol !== "postgres:") {
+if (
+  new URL(environment.DATABASE_URL).protocol !== "postgresql:" &&
+  new URL(environment.DATABASE_URL).protocol !== "postgres:"
+) {
   throw new Error("DATABASE_URL must use the PostgreSQL protocol.");
 }
 
@@ -115,11 +148,17 @@ if (
 const trustProxy = environment.TRUST_PROXY
   ? environment.TRUST_PROXY.split(",").map((entry) => entry.trim())
   : false;
-if (Array.isArray(trustProxy) && trustProxy.some((entry) => entry === "*" || entry === "true")) {
-  throw new Error("TRUST_PROXY must list trusted proxy addresses, not trust every proxy.");
+if (
+  Array.isArray(trustProxy) &&
+  trustProxy.some((entry) => entry === "*" || entry === "true")
+) {
+  throw new Error(
+    "TRUST_PROXY must list trusted proxy addresses, not trust every proxy.",
+  );
 }
 
 export const config = {
+  appName: environment.APP_NAME,
   apiHost: environment.API_HOST,
   apiPort: environment.API_PORT,
   apiPublicOrigin,
@@ -131,8 +170,9 @@ export const config = {
   googleClientSecret: environment.GOOGLE_CLIENT_SECRET ?? null,
   googleRedirectUri,
   nodeEnv: environment.NODE_ENV,
+  oauthStateCookieName: `${appNameCookiePrefix}_google_oauth`,
   sessionCookieDomain: environment.SESSION_COOKIE_DOMAIN,
-  sessionCookieName: environment.SESSION_COOKIE_NAME,
+  sessionCookieName: `${appNameCookiePrefix}_session`,
   sessionCookieSameSite: environment.SESSION_COOKIE_SAME_SITE,
   sessionCookieSecure:
     environment.NODE_ENV === "production" ||

@@ -23,7 +23,7 @@ reviews:
         - Verify that all incoming request bodies, query params, and headers are strictly validated using Zod schemas.
         - Ensure authentication middleware properly checks active database sessions and enforces user identity.
         - Flag any raw SQL strings or queries that bypass Kysely type safety.
-        - Verify that tenant/school context scopes are explicitly enforced on database queries.
+        - Verify that tenant/workspace context scopes are explicitly enforced on database queries.
 
     - path: "packages/database/**"
       instructions: |

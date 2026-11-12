@@ -5,19 +5,21 @@ import type { AppConfig } from "../../config";
 import { buildApp } from "../../app";
 
 const testConfig: AppConfig = {
+  appName: "Vyasen",
   apiHost: "127.0.0.1",
   apiPort: 4000,
   apiPublicOrigin: "http://localhost:4000",
   authCodeHashSecret: "test-code-secret-value-longer-than-32-characters",
   authRateLimitSecret: "test-rate-secret-value-longer-than-32-characters",
   authStateSecret: "test-state-secret-value-longer-than-32-characters",
-  databaseUrl: "postgres://test:test@127.0.0.1:5432/school_sms_test",
+  databaseUrl: "postgres://test:test@127.0.0.1:5432/vyasen_test",
   googleClientId: null,
   googleClientSecret: null,
   googleRedirectUri: "http://localhost:4000/api/v1/auth/google/callback",
   nodeEnv: "test",
+  oauthStateCookieName: "vyasen_google_oauth",
   sessionCookieDomain: undefined,
-  sessionCookieName: "school_sms_session",
+  sessionCookieName: "vyasen_session",
   sessionCookieSameSite: "lax",
   sessionCookieSecure: false,
   smtp: null,
