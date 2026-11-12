@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { appName } from "@/lib/app-config";
 import { ApiError, apiBaseUrl } from "@/lib/api-client";
 import {
   authKeys,
@@ -538,10 +539,12 @@ export function AuthModal({
                 <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
                   <GraduationCap size={20} />
                 </span>
-                <span className="text-lg font-bold tracking-tight">Vyasen</span>
+                <span className="text-lg font-bold tracking-tight">
+                  {appName}
+                </span>
               </div>
               <Dialog.Title className="text-xl font-semibold tracking-tight">
-                Welcome to Vyasen
+                Welcome to {appName}
               </Dialog.Title>
               <Dialog.Description
                 id="auth-dialog-description"
