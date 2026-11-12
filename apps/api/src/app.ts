@@ -41,7 +41,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const authService = new AuthService({
     db,
     config,
-    emailProvider: new EmailProvider(config.smtp, (failure) => {
+    emailProvider: new EmailProvider(config.smtp, config.appName, (failure) => {
       app.log.error(failure, "Sign-in email delivery failed.");
     }),
     googleProvider,

@@ -18,7 +18,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import type { SchoolRole } from "@vyasen/contracts";
+import type { WorkspaceRole } from "@vyasen/contracts";
 
 import { roleLabels, roleNavigation } from "@/components/navigation-config";
 import { ElasticScroller } from "@/components/elastic-scroller";
@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTheme } from "@/providers/theme-provider";
+import { appName } from "@/lib/app-config";
 
 type SidebarPosition = "left" | "right" | "top" | "bottom";
 type FloatingButtonPosition = { left: number; top: number };
@@ -68,9 +69,9 @@ function SidebarContents({
   onCloseHidden: () => void;
   onNavigate?: () => void;
   onProfileMenuOpen: () => void;
-  onRoleChange: (role: SchoolRole) => void;
+  onRoleChange: (role: WorkspaceRole) => void;
   onToggleCollapsed: () => void;
-  role: SchoolRole;
+  role: WorkspaceRole;
   position: SidebarPosition;
 }) {
   const pathname = useRouterState({
@@ -99,7 +100,11 @@ function SidebarContents({
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-lg shadow-accent/20">
             {collapsed && !horizontal ? (
-              <span className="text-2xl font-bold leading-none">S</span>
+              <span className="text-2xl font-bold leading-none">
+                {String.fromCodePoint(
+                  appName.codePointAt(0) ?? 0,
+                ).toUpperCase()}
+              </span>
             ) : (
               <GraduationCap size={22} />
             )}
@@ -109,14 +114,14 @@ function SidebarContents({
               <span className="block truncate text-sm font-bold tracking-tight">
                 <img
                   src="/static/app-icon.jpg"
-                  alt="Vyasen"
+                  alt={appName}
                   className="h-6 w-6 mr-2 inline-block"
                 />{" "}
-                Vyasen
+                {appName}
               </span>
               {!horizontal && (hiddenMode || canToggleCollapsed) && (
                 <span className="block text-xs text-muted-foreground">
-                  School workspace
+                  Institution workspace
                 </span>
               )}
             </span>
@@ -368,7 +373,7 @@ function SidebarContents({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { preferences, updatePreference } = useTheme();
-  const [role, setRole] = useState<SchoolRole>("admin");
+  const [role, setRole] = useState<WorkspaceRole>("admin");
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [hiddenSidebarOpen, setHiddenSidebarOpen] = useState(false);
   const [tabletSidebarExpanded, setTabletSidebarExpanded] = useState(false);
@@ -793,8 +798,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {position !== "bottom" && (
           <Sidebar
-            id="school-workspace-navigation"
-            aria-label="School workspace navigation"
+            id="workspace-navigation"
+            aria-label="Workspace navigation"
             aria-hidden={!dockIsVisible || dockHidden}
             inert={!dockIsVisible || dockHidden}
             onPointerLeave={() => {
@@ -883,8 +888,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {position === "bottom" && (
           <Sidebar
-            id="school-workspace-navigation"
-            aria-label="School workspace navigation"
+            id="workspace-navigation"
+            aria-label="Workspace navigation"
             aria-hidden={!dockIsVisible || dockHidden}
             inert={!dockIsVisible || dockHidden}
             onPointerLeave={() => {
@@ -916,7 +921,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant="secondary"
               size="icon"
               aria-label="Show sidebar"
-              aria-controls="school-workspace-navigation"
+              aria-controls="workspace-navigation"
               className={`fixed z-50 rounded-xl border border-border bg-surface shadow-lg ${
                 position === "top"
                   ? "left-1/2 top-0 -translate-x-1/2"
@@ -937,7 +942,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             variant="secondary"
             size="icon"
             aria-label={horizontal ? "Show sidebar" : "Open sidebar"}
-            aria-controls="school-workspace-navigation"
+            aria-controls="workspace-navigation"
             className="fixed z-50 touch-none rounded-full border border-border bg-surface shadow-xl"
             style={{
               left: floatingButtonPosition.left,
