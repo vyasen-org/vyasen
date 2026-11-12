@@ -1,6 +1,6 @@
-# Contributing to Vyasen (Indic SMS)
+# Contributing to Vyasen
 
-Thank you for your interest in contributing to **Vyasen**! We are building a modern, secure, and accessible multi-tenant School Management System (SMS) designed to serve educational institutions with high reliability and performance.
+Thank you for your interest in contributing to **Vyasen**! We are building a modern, secure, and accessible multi-tenant education management platform designed to serve educational institutions with high reliability and performance.
 
 Open source thrives on community contributions. Whether you are fixing a typo, resolving an open issue, proposing a new feature, or improving documentation, your support is warmly welcomed.
 
@@ -45,6 +45,7 @@ This project is governed by the [Contributor Covenant](https://www.contributor-c
 Before creating a bug report, please check existing [Issues](https://github.com/vyasen-org/vyasen/issues) to ensure the problem has not already been reported or solved.
 
 If filing a new bug:
+
 1. Use the **Bug Report** template if available.
 2. Provide a clear, descriptive title.
 3. List explicit steps to reproduce the issue, expected outcome, and actual behavior.
@@ -56,13 +57,15 @@ If filing a new bug:
 ### Suggesting Enhancements
 
 Feature requests and architectural ideas are welcome:
+
 1. Check existing issues or discussions to avoid duplicate proposals.
 2. Outline the motivation: what problem does this feature solve?
-3. Describe the proposed solution, alternative designs considered, and any potential impacts on existing school tenants or permissions.
+3. Describe the proposed solution, alternative designs considered, and any potential impacts on existing institution workspaces or permissions.
 
 ### Improving Documentation
 
 High-quality documentation is critical for educational software. You can contribute by:
+
 - Fixing typographical errors, unclear explanations, or broken links.
 - Adding setup guides or edge-case troubleshooting instructions.
 - Documenting contract schemas, API endpoints, or database workflows.
@@ -71,7 +74,7 @@ High-quality documentation is critical for educational software. You can contrib
 
 ## Monorepo Architecture
 
-Indic SMS is structured as a **pnpm workspace** managed with **Turborepo**:
+Vyasen is structured as a **pnpm workspace** managed with **Turborepo**:
 
 ```text
 indic_sms/
@@ -102,6 +105,7 @@ indic_sms/
 ### Prerequisites
 
 Ensure you have the following installed on your machine:
+
 - **Node.js**: `v24.0.0` or newer (LTS recommended)
 - **pnpm**: `v12.0.0` or newer (Enable via Corepack: `corepack enable && corepack use pnpm@12`)
 - **PostgreSQL**: `v16` or newer (`v18` recommended)
@@ -129,6 +133,7 @@ cp .env.example .env
 ```
 
 Open `.env` and verify the settings:
+
 - **`DATABASE_URL`**: Set to your local PostgreSQL connection string (see [Local PostgreSQL Database Setup](#local-postgresql-database-setup) below).
 - **Authentication Secrets**: Generate three distinct, cryptographically strong random strings for session, access, and refresh token signing:
   ```bash
@@ -142,13 +147,13 @@ Open `.env` and verify the settings:
 
 Vyasen requires a PostgreSQL database (`v16+`, `v18` recommended). For local development, we follow a standardized credential convention:
 
-| Setting | Standard Local Value |
-| :--- | :--- |
-| **Database Name** | `vyasen` |
-| **Username** | `vyasen` |
-| **Password** | `vyasen` |
-| **Host** | `localhost` (or `127.0.0.1`) |
-| **Port** | `5432` |
+| Setting            | Standard Local Value                               |
+| :----------------- | :------------------------------------------------- |
+| **Database Name**  | `vyasen`                                           |
+| **Username**       | `vyasen`                                           |
+| **Password**       | `vyasen`                                           |
+| **Host**           | `localhost` (or `127.0.0.1`)                       |
+| **Port**           | `5432`                                             |
 | **Connection URL** | `postgresql://vyasen:vyasen@localhost:5432/vyasen` |
 
 Choose one of the two options below to set up your local database:
@@ -156,12 +161,15 @@ Choose one of the two options below to set up your local database:
 #### Option A: Native PostgreSQL (psql CLI)
 
 1. Open your terminal and connect to your local PostgreSQL server as the administrative `postgres` user:
+
    ```bash
    psql -U postgres
    ```
-   *(On Linux/macOS, you may run `sudo -u postgres psql` if using peer authentication)*.
+
+   _(On Linux/macOS, you may run `sudo -u postgres psql` if using peer authentication)_.
 
 2. Execute the following SQL commands to create the dedicated `vyasen` user and database:
+
    ```sql
    -- Create the dedicated development user with password
    CREATE USER vyasen WITH PASSWORD 'vyasen' CREATEDB;
@@ -205,6 +213,7 @@ docker run -d \
 ```
 
 To stop or restart the container later:
+
 ```bash
 docker stop vyasen-postgres
 docker start vyasen-postgres
@@ -226,7 +235,7 @@ Apply all pending versioned migrations using the workspace script:
 pnpm db:migrate
 ```
 
-*(This applies all Kysely migrations located in `packages/database/src/migrations` and ensures the database schema is up to date).*
+_(This applies all Kysely migrations located in `packages/database/src/migrations` and ensures the database schema is up to date)._
 
 #### Verifying Database Setup
 
@@ -238,9 +247,11 @@ psql -U vyasen -d vyasen -h localhost -W
 ```
 
 Inside the `psql` prompt, run:
+
 ```sql
 \dt
 ```
+
 You should see the core tables: `users`, `sessions`, `email_codes`, and `platform_migrations`.
 
 ### Running the Workspace
@@ -252,6 +263,7 @@ pnpm dev
 ```
 
 By default:
+
 - **Web Client**: `http://localhost:3000`
 - **Fastify API**: `http://localhost:4000` (or the port defined in your `.env`)
 
@@ -309,6 +321,7 @@ We enforce the [Conventional Commits](https://www.conventionalcommits.org/) spec
 ```
 
 #### Types:
+
 - `feat`: A new feature
 - `fix`: A bug fix
 - `docs`: Documentation changes
@@ -318,8 +331,9 @@ We enforce the [Conventional Commits](https://www.conventionalcommits.org/) spec
 - `chore`: Tooling, build pipeline, or dependency maintenance
 
 #### Examples:
+
 ```text
-feat(api): add multi-tenant school onboarding endpoint
+feat(api): add multi-tenant institution onboarding endpoint
 fix(web): resolve sidebar collision on mobile viewports
 docs(readme): update local postgres connection instructions
 ```
@@ -372,5 +386,4 @@ Refer to our [Security Policy](./SECURITY.md) for instructions on how to private
 - **GitHub Discussions**: For general questions, roadmap ideas, and architecture inquiries.
 - **GitHub Issues**: For verified bug reports and concrete feature proposals.
 
-Thank you for contributing to **Indic SMS**! Your contributions make education management safer, faster, and more accessible for schools everywhere.
-
+Thank you for contributing to **Vyasen**! Your contributions make education management safer, faster, and more accessible for institutions everywhere.

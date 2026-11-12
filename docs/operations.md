@@ -71,7 +71,7 @@ Neon PostgreSQL (serverless, auto-suspends when idle)
 | `AUTH_CODE_HASH_SECRET`    | Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `AUTH_STATE_SECRET`        | (generate separately)                                                                      |
 | `AUTH_RATE_LIMIT_SECRET`   | (generate separately)                                                                      |
-| `SESSION_COOKIE_NAME`      | `vyasen_session`                                                                           |
+| `APP_NAME`                 | `Vyasen`                                                                                   |
 | `SESSION_COOKIE_SAME_SITE` | `lax`                                                                                      |
 | `SESSION_COOKIE_DOMAIN`    | `.vyasen.com`                                                                              |
 | `TRUST_PROXY`              | `1`                                                                                        |
@@ -96,9 +96,13 @@ Neon PostgreSQL (serverless, auto-suspends when idle)
    - **Build command:** `pnpm --filter @vyasen/web build`
    - **Build output directory:** `apps/web/dist`
    - **Root directory:** `/` (leave blank)
-4. Under **Environment variables** (Production):
-   - `VITE_APP_NAME` = `Vyasen`
+4. In GitHub repository **Settings** → **Secrets and variables** → **Actions**
+   → **Variables**, set:
+   - `VITE_APP_NAME` = your deployment’s display name (defaults to `Vyasen`)
    - `VITE_API_BASE_URL` = `https://api.vyasen.com`
+     The frontend branding value is embedded at build time. Set `APP_NAME` in
+     the API hosting environment too; it determines the API email brand and
+     auth-cookie names.
 5. **Disable** automatic deployments — GitHub Actions handles this.
    Under **Settings** → **Builds & deployments** → turn off auto-deploy.
 
