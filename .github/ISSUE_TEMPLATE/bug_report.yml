@@ -58,7 +58,7 @@ body:
         - label: Settings — Sidebar (placement, navigation)
         - label: Settings — Profile / Account
         - label: Settings — Notifications
-        - label: Workspace / School context switching
+        - label: Workspace / Institution context switching
         - label: Other (please specify below)
     validations:
       required: true
@@ -90,7 +90,7 @@ body:
     id: expected-behavior
     attributes:
       label: What did you expect to happen?
-      placeholder: "e.g. The dashboard should load and show my school's information."
+      placeholder: "e.g. The dashboard should load and show my institution's information."
     validations:
       required: true
 

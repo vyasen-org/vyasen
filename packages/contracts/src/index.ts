@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const schoolRoles = [
+export const workspaceRoles = [
   "admin",
   "principal",
   "teacher",
@@ -8,9 +8,9 @@ export const schoolRoles = [
   "hr",
 ] as const;
 
-export const schoolRoleSchema = z.enum(schoolRoles);
+export const workspaceRoleSchema = z.enum(workspaceRoles);
 
-export type SchoolRole = z.infer<typeof schoolRoleSchema>;
+export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 
 export {
   appearancePreferenceSchema,
