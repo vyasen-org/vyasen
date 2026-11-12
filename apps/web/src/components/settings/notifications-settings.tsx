@@ -175,7 +175,7 @@ export function NotificationsSettings() {
             <div>
               <h2 className="text-base font-semibold">Notifications</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Choose which school updates you would like to receive.
+                Choose which institution updates you would like to receive.
               </p>
             </div>
           </div>
@@ -228,8 +228,8 @@ export function NotificationsSettings() {
           </SettingsSection>
 
           <SettingsSection
-            title="School activity"
-            description="Fine-tune updates about your attendance, learning, and school."
+            title="Institution activity"
+            description="Fine-tune updates about your attendance, learning, and institution."
           >
             <NotificationToggle
               checked={preferences.attendance}
@@ -254,9 +254,9 @@ export function NotificationsSettings() {
             />
             <NotificationToggle
               checked={preferences.announcements}
-              description="School announcements, events, and important notices."
+              description="Institution announcements, events, and important notices."
               icon={Megaphone}
-              label="School announcements"
+              label="Institution announcements"
               onChange={(value) => updatePreference("announcements", value)}
             />
             <NotificationToggle

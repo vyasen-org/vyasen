@@ -38,7 +38,7 @@ body:
         - label: Authentication & Sessions (sign-in, linking accounts)
         - label: Dashboard & Home
         - label: Settings (Appearance, Sidebar, Profile, Notifications)
-        - label: Workspace / School Management
+        - label: Workspace / Institution Management
         - label: Student / Teacher / Staff roles & permissions
         - label: Attendance, Exams, or Academic features
         - label: Design / Look & Feel
@@ -67,7 +67,7 @@ body:
     id: why-helpful
     attributes:
       label: Why is this helpful?
-      description: Explain why this matters and what benefit it brings to schools, teachers, students, or parents.
+      description: Explain why this matters and what benefit it brings to educational institutions, teachers, students, or parents.
       placeholder: "This would help because..."
     validations:
       required: true

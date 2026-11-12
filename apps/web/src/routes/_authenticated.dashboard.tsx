@@ -106,19 +106,16 @@ function DashboardPage() {
           </p>
         </div>
         <Button className="gap-2">
-          <Plus size={16} /> Add to school
+          <Plus size={16} /> Add to workspace
         </Button>
       </div>
 
       <section
-        aria-label="School overview"
+        aria-label="Institution overview"
         className="grid gap-4 md:grid-cols-3"
       >
         {metrics.map(({ label, value, change, icon: Icon, positive }) => (
-          <article
-            key={label}
-            className="theme-surface-panel rounded-2xl p-5"
-          >
+          <article key={label} className="theme-surface-panel rounded-2xl p-5">
             <div className="flex items-center justify-between">
               <span className="grid size-10 place-items-center rounded-xl bg-accent/15 text-accent">
                 <Icon size={19} />
@@ -158,7 +155,7 @@ function DashboardPage() {
             <div>
               <h2 className="text-base font-semibold">Attendance overview</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Daily attendance across the school
+                Daily attendance across the institution
               </p>
             </div>
             <button className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -188,7 +185,7 @@ function DashboardPage() {
           </div>
           <div className="mt-9 flex items-center justify-between rounded-xl bg-background px-4 py-3">
             <span className="text-xs text-muted-foreground">
-              School average
+              Institution average
             </span>
             <span className="text-sm font-semibold">81.3%</span>
           </div>
@@ -248,9 +245,11 @@ function DashboardPage() {
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">Recent school activity</h2>
+            <h2 className="text-base font-semibold">
+              Recent institution activity
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Updates from your school community
+              Updates from your institution community
             </p>
           </div>
           <Button variant="ghost" size="sm">

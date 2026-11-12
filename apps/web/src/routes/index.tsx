@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/app-shell";
+import { appName } from "@/lib/app-config";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -27,15 +28,15 @@ const highlights = [
   },
   {
     icon: ShieldCheck,
-    title: "Designed for school privacy",
+    title: "Designed for institution privacy",
     description:
-      "Keep each school's people, records, and daily work securely in its own workspace.",
+      "Keep each institution's people, records, and daily work securely in its own workspace.",
   },
   {
     icon: CalendarDays,
     title: "Less busywork",
     description:
-      "Bring class schedules, attendance, and school updates together in one clear view.",
+      "Bring class schedules, attendance, and institution updates together in one clear view.",
   },
 ];
 
@@ -49,15 +50,15 @@ function LandingPage() {
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                 <Sparkles size={14} className="text-accent" />A calmer way to
-                run a school
+                run an institution
               </span>
               <h1 className="mt-7 max-w-3xl text-5xl font-semibold leading-[1.08] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-                A better day at school starts{" "}
+                A better day at your institution starts{" "}
                 <span className="text-accent">with everyone in sync.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-                Bring the people and everyday work of your school together in
-                one thoughtful, secure workspace.
+                Bring the people and everyday work of your institution together
+                in one thoughtful, secure workspace.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Button size="default" className="h-12 px-5" asChild>
@@ -74,8 +75,8 @@ function LandingPage() {
               </div>
               <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
                 {[
-                  "For every school role",
-                  "One workspace per school",
+                  "For every institution role",
+                  "One workspace per institution",
                   "Built to grow with you",
                 ].map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
@@ -97,7 +98,7 @@ function LandingPage() {
                     <div>
                       <p className="text-sm font-semibold">Greenwood Academy</p>
                       <p className="text-xs text-muted-foreground">
-                        Your school at a glance
+                        Your institution at a glance
                       </p>
                     </div>
                   </div>
@@ -127,7 +128,7 @@ function LandingPage() {
                         Today&apos;s rhythm
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        A quick look at the school day
+                        A quick look at the institution day
                       </p>
                     </div>
                     <CalendarDays size={18} className="text-muted-foreground" />
@@ -155,7 +156,7 @@ function LandingPage() {
                   </span>
                   <div>
                     <p className="text-xs font-semibold">
-                      A shared school workspace
+                      A shared institution workspace
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       Admin · Principal · Teacher · Student
@@ -173,14 +174,14 @@ function LandingPage() {
             <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-24">
               <div className="max-w-2xl">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
-                  One school, one clear picture
+                  One institution, one clear picture
                 </p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
                   The right information, for the right people.
                 </h2>
                 <p className="mt-4 leading-7 text-muted-foreground">
-                  A shared foundation for school teams, with each role focused
-                  on what matters to them.
+                  A shared foundation for institution teams, with each role
+                  focused on what matters to them.
                 </p>
               </div>
               <div id="community" className="mt-10 grid gap-4 md:grid-cols-3">
@@ -211,7 +212,7 @@ function LandingPage() {
                 Make more room for learning.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                A connected school community begins here.
+                A connected education community begins here.
               </p>
             </div>
             <Button variant="outline" asChild>
@@ -222,7 +223,7 @@ function LandingPage() {
           </section>
         </main>
         <footer className="border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
-          Vyasen · A shared workspace for school communities
+          {appName} · A shared workspace for education communities
         </footer>
       </div>
     </AppShell>
