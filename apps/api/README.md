@@ -1,6 +1,6 @@
-# Indic SMS API
+# Vyasen API
 
-The Indic SMS API is a Fastify application providing the backend services
+The Vyasen API is a Fastify application providing the backend services
 currently implemented for the project. Its active feature is authentication:
 email one-time-code sign-in, Google OAuth/OIDC, Google One Tap, Google identity
 linking, and cookie-backed sessions.
@@ -11,9 +11,9 @@ data in PostgreSQL through Kysely and
 [`@vyasen/database`](../../packages/database).
 
 > **Current scope:** user accounts are global identities. Authentication does
-> not create a school, assign an `institution_id`, or grant school membership or a
-> role. Those permissions must come from a future authorized onboarding or
-> invitation flow. School-specific API endpoints are not implemented yet.
+> not create an institution, assign an `institution_id`, or grant workspace
+> membership or a role. Those permissions must come from an authorized onboarding
+> or invitation flow. Institution-specific API endpoints are not implemented yet.
 
 ## Architecture
 
@@ -38,15 +38,15 @@ Route ------> Shared contracts (@vyasen/contracts)
 
 The current authentication module is in [`src/modules/auth`](src/modules/auth):
 
-| File | Responsibility |
-| --- | --- |
-| `auth.routes.ts` | Registers authentication endpoints, schemas, and authentication pre-handlers. |
+| File                 | Responsibility                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `auth.routes.ts`     | Registers authentication endpoints, schemas, and authentication pre-handlers.         |
 | `auth.controller.ts` | Maps Fastify requests to service calls and handles responses, cookies, and redirects. |
-| `auth.service.ts` | Implements sign-in, identity, rate-limit, and session use cases. |
-| `auth.repository.ts` | Reads and writes authentication records using Kysely. |
-| `auth.provider.ts` | Integrates with SMTP and Google OAuth/OIDC and handles token/hash utilities. |
-| `auth.guard.ts` | Resolves and requires the authenticated session. |
-| `auth.security.ts` | Requires an allowed `Origin` on state-changing requests. |
+| `auth.service.ts`    | Implements sign-in, identity, rate-limit, and session use cases.                      |
+| `auth.repository.ts` | Reads and writes authentication records using Kysely.                                 |
+| `auth.provider.ts`   | Integrates with SMTP and Google OAuth/OIDC and handles token/hash utilities.          |
+| `auth.guard.ts`      | Resolves and requires the authenticated session.                                      |
+| `auth.security.ts`   | Requires an allowed `Origin` on state-changing requests.                              |
 
 [`src/app.ts`](src/app.ts) creates the Fastify application, database and
 providers, configures request validation and serialization, security headers,
@@ -127,31 +127,31 @@ API base URL is `http://localhost:4000`; configure `VITE_API_BASE_URL` and
 The API loads the repository-root `.env` file. `src/config.ts` validates these
 values at startup.
 
-| Variable | Required | Default / purpose |
-| --- | --- | --- |
-| `NODE_ENV` | No | `development`; allowed values are `development`, `test`, `production`. |
-| `API_HOST` | No | `127.0.0.1`, the bind host. |
-| `API_PORT` | No | `4000`, the bind port. |
-| `API_PUBLIC_ORIGIN` | No | `http://localhost:4000`; public API origin used to construct and validate the Google callback URI. |
-| `WEB_ORIGINS` | No | `http://localhost:3000`; comma-separated allowed web origins for CORS and state-changing request origin checks. |
-| `DATABASE_URL` | Yes | PostgreSQL connection string for the API runtime. |
-| `MIGRATION_DATABASE_URL` | Production migrations | Separate database connection for migrations. In development, migrations fall back to `DATABASE_URL`. |
-| `AUTH_CODE_HASH_SECRET` | Yes | Random secret for hashing email verification codes and rate-limit keys; minimum 32 characters. |
-| `AUTH_STATE_SECRET` | Yes | Random secret for signed Google OAuth state; minimum 32 characters. |
-| `AUTH_RATE_LIMIT_SECRET` | Yes | Random secret for keyed rate-limit hashes; minimum 32 characters. |
-| `SESSION_COOKIE_NAME` | No | `school_sms_session`. |
-| `SESSION_COOKIE_DOMAIN` | No | Omit to use a host-only cookie; set only when required by the deployment. |
-| `SESSION_COOKIE_SAME_SITE` | No | `lax`; allowed values are `strict`, `lax`, `none`. `none` is permitted only in production and requires HTTPS. |
-| `TRUST_PROXY` | No | Empty means do not trust proxies. Otherwise, comma-separated trusted proxy IPs/CIDRs; do not use a wildcard. |
-| `GOOGLE_CLIENT_ID` | Optional | Set together with `GOOGLE_CLIENT_SECRET` to enable Google sign-in. |
-| `GOOGLE_CLIENT_SECRET` | Optional | Set together with `GOOGLE_CLIENT_ID`. |
-| `GOOGLE_REDIRECT_URI` | No | Defaults to `${API_PUBLIC_ORIGIN}/api/v1/auth/google/callback`; if set, it must use that origin and callback path. |
-| `SMTP_HOST` | Optional | Configure to enable email-code delivery. |
-| `SMTP_PORT` | No | `587`. |
-| `SMTP_SECURE` | No | `false`; set `true` when SMTP uses an implicit TLS connection. |
-| `SMTP_USER` | Optional | SMTP username; must be set together with `SMTP_PASSWORD`. |
-| `SMTP_PASSWORD` | Optional | SMTP password; must be set together with `SMTP_USER`. |
-| `SMTP_FROM` | No | `no-reply@vyasen.example`; accepts an email address or `Display Name <email>`. |
+| Variable                   | Required              | Default / purpose                                                                                                  |
+| -------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `NODE_ENV`                 | No                    | `development`; allowed values are `development`, `test`, `production`.                                             |
+| `APP_NAME`                 | No                    | `Vyasen`; customer-facing API brand and prefix for auth cookie names.                                              |
+| `API_HOST`                 | No                    | `127.0.0.1`, the bind host.                                                                                        |
+| `API_PORT`                 | No                    | `4000`, the bind port.                                                                                             |
+| `API_PUBLIC_ORIGIN`        | No                    | `http://localhost:4000`; public API origin used to construct and validate the Google callback URI.                 |
+| `WEB_ORIGINS`              | No                    | `http://localhost:3000`; comma-separated allowed web origins for CORS and state-changing request origin checks.    |
+| `DATABASE_URL`             | Yes                   | PostgreSQL connection string for the API runtime.                                                                  |
+| `MIGRATION_DATABASE_URL`   | Production migrations | Separate database connection for migrations. In development, migrations fall back to `DATABASE_URL`.               |
+| `AUTH_CODE_HASH_SECRET`    | Yes                   | Random secret for hashing email verification codes and rate-limit keys; minimum 32 characters.                     |
+| `AUTH_STATE_SECRET`        | Yes                   | Random secret for signed Google OAuth state; minimum 32 characters.                                                |
+| `AUTH_RATE_LIMIT_SECRET`   | Yes                   | Random secret for keyed rate-limit hashes; minimum 32 characters.                                                  |
+| `SESSION_COOKIE_DOMAIN`    | No                    | Omit to use a host-only cookie; set only when required by the deployment.                                          |
+| `SESSION_COOKIE_SAME_SITE` | No                    | `lax`; allowed values are `strict`, `lax`, `none`. `none` is permitted only in production and requires HTTPS.      |
+| `TRUST_PROXY`              | No                    | Empty means do not trust proxies. Otherwise, comma-separated trusted proxy IPs/CIDRs; do not use a wildcard.       |
+| `GOOGLE_CLIENT_ID`         | Optional              | Set together with `GOOGLE_CLIENT_SECRET` to enable Google sign-in.                                                 |
+| `GOOGLE_CLIENT_SECRET`     | Optional              | Set together with `GOOGLE_CLIENT_ID`.                                                                              |
+| `GOOGLE_REDIRECT_URI`      | No                    | Defaults to `${API_PUBLIC_ORIGIN}/api/v1/auth/google/callback`; if set, it must use that origin and callback path. |
+| `SMTP_HOST`                | Optional              | Configure to enable email-code delivery.                                                                           |
+| `SMTP_PORT`                | No                    | `587`.                                                                                                             |
+| `SMTP_SECURE`              | No                    | `false`; set `true` when SMTP uses an implicit TLS connection.                                                     |
+| `SMTP_USER`                | Optional              | SMTP username; must be set together with `SMTP_PASSWORD`.                                                          |
+| `SMTP_PASSWORD`            | Optional              | SMTP password; must be set together with `SMTP_USER`.                                                              |
+| `SMTP_FROM`                | No                    | `no-reply@vyasen.example`; accepts an email address or `Display Name <email>`.                                     |
 
 Google credentials must be configured as a pair. Production API and web origins
 must use HTTPS. Configure `TRUST_PROXY` only with the addresses or CIDRs of
@@ -165,20 +165,20 @@ validated or serialized using shared Zod contracts where declared in the route.
 There is no Swagger/OpenAPI documentation endpoint registered in the current
 API app.
 
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/email/codes` | Public | Request an email sign-in code. Returns `202` with a challenge ID, expiry, and generic message. |
-| `POST` | `/api/v1/auth/email/sessions` | Public | Verify a code, create/sign in the user, and set the session cookie. |
-| `GET` | `/api/v1/auth/google/nonce` | Public | Obtain a short-lived nonce for Google One Tap. |
-| `GET` | `/api/v1/auth/google/authorize` | Public | Begin Google OAuth; accepts optional `returnTo` query parameter. |
-| `GET` | `/api/v1/auth/google/callback` | Public | Handle the Google OAuth callback and redirect to the web app. |
-| `POST` | `/api/v1/auth/google/one-tap` | Public | Verify a Google One Tap credential and sign in. |
-| `POST` | `/api/v1/auth/google/identities` | Authenticated | Link a verified Google identity to the signed-in user. |
-| `GET` | `/api/v1/auth/session` | Authenticated | Return the current user. |
-| `DELETE` | `/api/v1/auth/session` | Public | End the current session and clear its cookie. |
-| `GET` | `/api/v1/auth/sessions` | Authenticated | List the current user’s active sessions. |
-| `DELETE` | `/api/v1/auth/sessions/:sessionId` | Authenticated | Revoke one session belonging to the current user. |
-| `DELETE` | `/api/v1/auth/sessions` | Authenticated | Revoke all sessions for the current user. |
+| Method   | Path                               | Access        | Purpose                                                                                        |
+| -------- | ---------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| `POST`   | `/api/v1/auth/email/codes`         | Public        | Request an email sign-in code. Returns `202` with a challenge ID, expiry, and generic message. |
+| `POST`   | `/api/v1/auth/email/sessions`      | Public        | Verify a code, create/sign in the user, and set the session cookie.                            |
+| `GET`    | `/api/v1/auth/google/nonce`        | Public        | Obtain a short-lived nonce for Google One Tap.                                                 |
+| `GET`    | `/api/v1/auth/google/authorize`    | Public        | Begin Google OAuth; accepts optional `returnTo` query parameter.                               |
+| `GET`    | `/api/v1/auth/google/callback`     | Public        | Handle the Google OAuth callback and redirect to the web app.                                  |
+| `POST`   | `/api/v1/auth/google/one-tap`      | Public        | Verify a Google One Tap credential and sign in.                                                |
+| `POST`   | `/api/v1/auth/google/identities`   | Authenticated | Link a verified Google identity to the signed-in user.                                         |
+| `GET`    | `/api/v1/auth/session`             | Authenticated | Return the current user.                                                                       |
+| `DELETE` | `/api/v1/auth/session`             | Public        | End the current session and clear its cookie.                                                  |
+| `GET`    | `/api/v1/auth/sessions`            | Authenticated | List the current user’s active sessions.                                                       |
+| `DELETE` | `/api/v1/auth/sessions/:sessionId` | Authenticated | Revoke one session belonging to the current user.                                              |
+| `DELETE` | `/api/v1/auth/sessions`            | Authenticated | Revoke all sessions for the current user.                                                      |
 
 State-changing requests must include an `Origin` matching an entry in
 `WEB_ORIGINS`. CORS allows only those configured origins and credentials.
@@ -229,17 +229,17 @@ The canonical schema is the migration at
 [`packages/database/src/migrations/001_create_auth_tables.ts`](../../packages/database/src/migrations/001_create_auth_tables.ts).
 It creates:
 
-| Table | Purpose |
-| --- | --- |
-| `users` | Global user identity, normalized unique email, profile, account status, and login timestamps. |
-| `auth_identities` | Unique email and Google provider identities linked to users. |
-| `email_verification_codes` | Hashed, expiring, attempt-limited email sign-in challenges. |
-| `sessions` | Hashed session tokens, expiry/revocation, and device metadata. |
-| `auth_rate_limits` | Shared hashed rate-limit buckets across API instances. |
-| `auth_nonces` | Hashed, expiring, single-use Google One Tap nonces. |
+| Table                      | Purpose                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------- |
+| `users`                    | Global user identity, normalized unique email, profile, account status, and login timestamps. |
+| `auth_identities`          | Unique email and Google provider identities linked to users.                                  |
+| `email_verification_codes` | Hashed, expiring, attempt-limited email sign-in challenges.                                   |
+| `sessions`                 | Hashed session tokens, expiry/revocation, and device metadata.                                |
+| `auth_rate_limits`         | Shared hashed rate-limit buckets across API instances.                                        |
+| `auth_nonces`              | Hashed, expiring, single-use Google One Tap nonces.                                           |
 
-Authentication data is global rather than school-owned and therefore is not
-tenant-scoped. Any future school-owned data must follow the repository’s
+Authentication data is global rather than institution-owned and therefore is not
+tenant-scoped. Any future institution-owned data must follow the repository’s
 tenant-isolation requirements, including `institution_id`, authorization checks,
 and PostgreSQL Row-Level Security where applicable.
 
@@ -251,15 +251,15 @@ run automatically during API startup.
 
 Run commands from the repository root:
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @vyasen/api dev` | Run the API with `tsx watch`. |
-| `pnpm --filter @vyasen/api start` | Run the API without watch mode. |
-| `pnpm --filter @vyasen/api build` | TypeScript validation (`tsc --noEmit`). |
-| `pnpm --filter @vyasen/api typecheck` | Type-check the API. |
-| `pnpm --filter @vyasen/api lint` | Run the API package’s TypeScript lint check. |
-| `pnpm --filter @vyasen/api test` | Run API authentication tests with Node’s test runner. |
-| `pnpm db:migrate` | Apply pending PostgreSQL migrations (`packages/database`). |
+| Command                               | Purpose                                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `pnpm --filter @vyasen/api dev`       | Run the API with `tsx watch`.                              |
+| `pnpm --filter @vyasen/api start`     | Run the API without watch mode.                            |
+| `pnpm --filter @vyasen/api build`     | TypeScript validation (`tsc --noEmit`).                    |
+| `pnpm --filter @vyasen/api typecheck` | Type-check the API.                                        |
+| `pnpm --filter @vyasen/api lint`      | Run the API package’s TypeScript lint check.               |
+| `pnpm --filter @vyasen/api test`      | Run API authentication tests with Node’s test runner.      |
+| `pnpm db:migrate`                     | Apply pending PostgreSQL migrations (`packages/database`). |
 
 ## Adding an API feature
 

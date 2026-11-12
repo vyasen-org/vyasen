@@ -18,6 +18,7 @@ import { createAuthRepository, type SessionMetadata } from "./auth.repository";
 
 const testDatabaseUrl = process.env.AUTH_TEST_DATABASE_URL;
 const testConfig: AppConfig = {
+  appName: "Vyasen",
   apiHost: "127.0.0.1",
   apiPort: 4000,
   apiPublicOrigin: "http://localhost:4000",
@@ -25,13 +26,14 @@ const testConfig: AppConfig = {
   authRateLimitSecret: "test-rate-secret-value-longer-than-32-characters",
   authStateSecret: "test-state-secret-value-longer-than-32-characters",
   databaseUrl:
-    testDatabaseUrl ?? "postgres://test:test@127.0.0.1:5432/school_sms_auth_test",
+    testDatabaseUrl ?? "postgres://test:test@127.0.0.1:5432/vyasen_auth_test",
   googleClientId: null,
   googleClientSecret: null,
   googleRedirectUri: "http://localhost:4000/api/v1/auth/google/callback",
   nodeEnv: "test",
+  oauthStateCookieName: "vyasen_google_oauth",
   sessionCookieDomain: undefined,
-  sessionCookieName: "school_sms_session",
+  sessionCookieName: "vyasen_session",
   sessionCookieSameSite: "lax",
   sessionCookieSecure: false,
   smtp: null,
@@ -63,10 +65,10 @@ test(
     const url = new URL(testDatabaseUrl);
     if (
       !["127.0.0.1", "localhost", "::1"].includes(url.hostname) ||
-      url.pathname !== "/school_sms_auth_test"
+      url.pathname !== "/vyasen_auth_test"
     ) {
       throw new Error(
-        "AUTH_TEST_DATABASE_URL must point to the local school_sms_auth_test database.",
+        "AUTH_TEST_DATABASE_URL must point to the local vyasen_auth_test database.",
       );
     }
 
@@ -111,8 +113,12 @@ test(
       const verify = () =>
         service.verifyEmailCode(challenge.challengeId, email, code, metadata);
       const attempts = await Promise.allSettled([verify(), verify()]);
-      const successful = attempts.filter((attempt) => attempt.status === "fulfilled");
-      const rejected = attempts.filter((attempt) => attempt.status === "rejected");
+      const successful = attempts.filter(
+        (attempt) => attempt.status === "fulfilled",
+      );
+      const rejected = attempts.filter(
+        (attempt) => attempt.status === "rejected",
+      );
 
       assert.equal(successful.length, 1);
       assert.equal(rejected.length, 1);
