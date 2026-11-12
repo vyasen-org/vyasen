@@ -231,9 +231,18 @@ function ThemePreview({
         className="w-1/5 shrink-0 space-y-1 rounded-lg p-2"
         style={{ backgroundColor: theme.previewSurface }}
       >
-        <span className="block h-1 rounded-full" style={{ backgroundColor: theme.swatch }} />
-        <span className="block h-1 rounded-full opacity-70" style={{ backgroundColor: theme.swatch }} />
-        <span className="block h-1 rounded-full opacity-50" style={{ backgroundColor: theme.swatch }} />
+        <span
+          className="block h-1 rounded-full"
+          style={{ backgroundColor: theme.swatch }}
+        />
+        <span
+          className="block h-1 rounded-full opacity-70"
+          style={{ backgroundColor: theme.swatch }}
+        />
+        <span
+          className="block h-1 rounded-full opacity-50"
+          style={{ backgroundColor: theme.swatch }}
+        />
       </span>
       <span
         className="min-w-0 flex-1 space-y-2 rounded-lg p-2"
@@ -242,8 +251,14 @@ function ThemePreview({
         <span className="block h-1 rounded-full bg-white/50" />
         <span className="block h-1 w-2/3 rounded-full bg-white/30" />
         <span className="grid grid-cols-2 gap-1">
-          <span className="h-7 rounded" style={{ backgroundColor: theme.previewPanel }} />
-          <span className="h-7 rounded opacity-80" style={{ backgroundColor: theme.previewPanel }} />
+          <span
+            className="h-7 rounded"
+            style={{ backgroundColor: theme.previewPanel }}
+          />
+          <span
+            className="h-7 rounded opacity-80"
+            style={{ backgroundColor: theme.previewPanel }}
+          />
         </span>
       </span>
     </span>
@@ -271,48 +286,50 @@ const displayModes = [
   },
 ] as const;
 
-function DisplayModePreview({ mode }: { mode: "light" | "dark" | "system" }) {
-  const isDark = mode === "dark";
-
-  function WorkspacePreview({ dark }: { dark: boolean }) {
-    return (
+// Hoisted to module scope so it is not re-created on every render of
+// DisplayModePreview (react-hooks/static-components).
+function WorkspacePreview({ dark }: { dark: boolean }) {
+  return (
+    <div
+      className={`flex min-w-0 flex-1 gap-2 rounded-lg p-2 ${
+        dark ? "bg-slate-950" : "bg-slate-100"
+      }`}
+    >
       <div
-        className={`flex min-w-0 flex-1 gap-2 rounded-lg p-2 ${
-          dark ? "bg-slate-950" : "bg-slate-100"
+        className={`w-1/5 shrink-0 space-y-1 rounded-md p-2 ${
+          dark ? "bg-slate-900" : "bg-white"
         }`}
       >
-        <div
-          className={`w-1/5 shrink-0 space-y-1 rounded-md p-2 ${
-            dark ? "bg-slate-900" : "bg-white"
-          }`}
-        >
-          <span className="block h-1 rounded-full bg-accent/80" />
-          <span className="block h-1 rounded-full bg-accent/50" />
-          <span className="block h-1 rounded-full bg-accent/50" />
-        </div>
-        <div
-          className={`min-w-0 flex-1 space-y-2 rounded-md p-2 ${
-            dark ? "bg-slate-900" : "bg-white"
-          }`}
-        >
-          <span
-            className={`block h-1 rounded-full ${
-              dark ? "bg-slate-500" : "bg-slate-400"
-            }`}
-          />
-          <span
-            className={`block h-1 w-2/3 rounded-full ${
-              dark ? "bg-slate-700" : "bg-slate-300"
-            }`}
-          />
-          <span className="grid grid-cols-2 gap-1">
-            <span className="h-7 rounded bg-accent/40" />
-            <span className="h-7 rounded bg-accent/50" />
-          </span>
-        </div>
+        <span className="block h-1 rounded-full bg-accent/80" />
+        <span className="block h-1 rounded-full bg-accent/50" />
+        <span className="block h-1 rounded-full bg-accent/50" />
       </div>
-    );
-  }
+      <div
+        className={`min-w-0 flex-1 space-y-2 rounded-md p-2 ${
+          dark ? "bg-slate-900" : "bg-white"
+        }`}
+      >
+        <span
+          className={`block h-1 rounded-full ${
+            dark ? "bg-slate-500" : "bg-slate-400"
+          }`}
+        />
+        <span
+          className={`block h-1 w-2/3 rounded-full ${
+            dark ? "bg-slate-700" : "bg-slate-300"
+          }`}
+        />
+        <span className="grid grid-cols-2 gap-1">
+          <span className="h-7 rounded bg-accent/40" />
+          <span className="h-7 rounded bg-accent/50" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DisplayModePreview({ mode }: { mode: "light" | "dark" | "system" }) {
+  const isDark = mode === "dark";
 
   return (
     <div

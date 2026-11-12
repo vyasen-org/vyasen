@@ -123,7 +123,8 @@ export function AccountSettings() {
           <div>
             <p className="text-sm font-medium">Need to deactivate?</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Contact your school administrator for help with account access.
+              Contact your institution administrator for help with account
+              access.
             </p>
           </div>
           <button

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   createRootRoute,
   Outlet,
@@ -48,11 +48,16 @@ function RootLayout() {
   const loginRequested = searchParams.get("login") === "1";
   const loginOpen = loginRequested && !authenticated;
   const autoOneTapAttempted = useRef(false);
+  // Track whether we have already attempted Google One Tap as state so the
+  // value participates in the render cycle without reading a ref during render
+  // (react-hooks/refs). The ref is kept as the write target inside the effect
+  // to avoid a double-render on the frame the tap fires.
+  const [autoOneTapDone, setAutoOneTapDone] = useState(false);
   const autoOneTapEnabled =
     authSessionQuery.isSuccess &&
     !authenticated &&
     !loginRequested &&
-    !autoOneTapAttempted.current;
+    !autoOneTapDone;
   const googleNonceQuery = useGoogleNonceQuery(autoOneTapEnabled);
   const googleSignInMutation = useGoogleSignInMutation();
   const authResult = searchParams.get("auth");
@@ -109,6 +114,7 @@ function RootLayout() {
   useEffect(() => {
     if (loginRequested) {
       autoOneTapAttempted.current = true;
+      setAutoOneTapDone(true);
       return;
     }
 
@@ -128,6 +134,7 @@ function RootLayout() {
     const initializeGoogle = () => {
       if (!active || !window.google) return;
       autoOneTapAttempted.current = true;
+      setAutoOneTapDone(true);
       window.google.accounts.id.initialize({
         client_id: clientId,
         nonce,
@@ -180,10 +187,11 @@ function RootLayout() {
   }, [
     authSessionQuery.isSuccess,
     authenticated,
+    autoOneTapDone,
     currentLocation.hash,
     currentLocation.pathname,
     googleNonceQuery.data,
-    googleSignInMutation.mutate,
+    googleSignInMutation,
     loginRequested,
     navigate,
   ]);

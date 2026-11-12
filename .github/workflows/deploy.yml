@@ -1,0 +1,155 @@
+name: Deploy
+
+# Triggers only on a push (or merge) to the develop branch.
+# In practice this means: a PR is merged → automated deployment starts.
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+# Never cancel an in-flight deploy — a half-deployed state is worse than
+# running two deploys in sequence.
+concurrency:
+  group: deploy-develop
+  cancel-in-progress: false
+
+jobs:
+  # ─── 1. Database Migrations ───────────────────────────────────────────────
+  # This job MUST succeed before the API or frontend is deployed.
+  # If a migration fails, the pipeline stops here — the old code keeps running
+  # against the unchanged schema.
+  migrate:
+    name: Run database migrations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: development
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration credentials
+        shell: bash
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: |
+          set -Eeuo pipefail
+          test -n "${MIGRATION_DATABASE_URL}" || {
+            echo "::error::MIGRATION_DATABASE_URL secret is missing. Add it in GitHub → Settings → Secrets."
+            exit 1
+          }
+
+      - name: Apply pending migrations
+        run: pnpm db:migrate
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+
+  # ─── 2a. Deploy Backend to Render ─────────────────────────────────────────
+  # Triggers Render's deploy hook. Render pulls the latest commit, installs
+  # deps, and restarts the service. The hook returns immediately; Render
+  # handles the actual deployment asynchronously.
+  deploy-api:
+    name: Deploy API → Render
+    needs: migrate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: development
+      url: https://api.vyasen.com
+
+    steps:
+      - name: Trigger Render deploy hook
+        shell: bash
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+
+          test -n "${RENDER_DEPLOY_HOOK}" || {
+            echo "::error::RENDER_DEPLOY_HOOK secret is missing. See docs/operations.md for setup."
+            exit 1
+          }
+
+          # Render deploy hooks already contain a ?key= query string.
+          # Render expects &ref=<commit-sha> to deploy a specific commit (not ?deploySHA=).
+          HOOK_URL="${RENDER_DEPLOY_HOOK}"
+          if [[ "${HOOK_URL}" == *"?"* ]]; then
+            HOOK_URL="${HOOK_URL}&ref=${DEPLOY_SHA}"
+          else
+            HOOK_URL="${HOOK_URL}?ref=${DEPLOY_SHA}"
+          fi
+
+          echo "Triggering Render deploy for commit ${DEPLOY_SHA:0:7}..."
+          curl --fail --silent --show-error \
+            -X POST "${HOOK_URL}" \
+            -o /dev/null
+
+          echo "✓ Render deploy triggered. Monitor progress at https://dashboard.render.com"
+
+  # ─── 2b. Deploy Frontend to Cloudflare Pages ──────────────────────────────
+  # Runs in parallel with deploy-api (both wait for migrate to succeed first).
+  # Builds the Vite app and publishes the static assets to Cloudflare's edge.
+  deploy-web:
+    name: Deploy Web → Cloudflare Pages
+    needs: migrate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      deployments: write # needed for the Cloudflare Pages action to post deployment status
+    environment:
+      name: development
+      url: https://dev.vyasen.com
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # VITE_API_BASE_URL is baked into the browser bundle at build time.
+      # It is also set in .env.production in the repo root; the GitHub Actions
+      # variable overrides it here so we can change the URL without a code commit.
+      - name: Build web application
+        run: pnpm --filter @vyasen/web build
+        env:
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy apps/web/dist --project-name=vyasen-web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

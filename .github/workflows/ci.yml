@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["*"]
+  push:
+    branches-ignore:
+      - develop
+
+permissions:
+  contents: read
+
+# Cancel previous in-progress runs for the same branch so we don't
+# waste runner minutes when contributors push fixes quickly.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # --frozen-lockfile ensures contributors don't accidentally commit
+      # an outdated pnpm-lock.yaml.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # TypeScript type checking across all workspace packages.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # ESLint — catches issues tsc misses (floating promises, any types, etc.)
+      - name: Lint (ESLint)
+        run: pnpm lint:check
+
+      # Node built-in test runner for the auth module unit tests.
+      - name: Test
+        run: pnpm test
+
+      # Verify the Vite bundle compiles cleanly.
+      # VITE_API_BASE_URL falls back to https://api.vyasen.com from .env.production.
+      - name: Build
+        run: pnpm build

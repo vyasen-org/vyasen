@@ -1,12 +1,13 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, GraduationCap, Mail, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { appName } from "@/lib/app-config";
 import { ApiError, apiBaseUrl } from "@/lib/api-client";
 import {
   authKeys,
@@ -115,6 +116,48 @@ export function AuthModal({
     defaultValues: { code: "" },
   });
 
+  // resetFlow and handleOpenChange are hoisted above the Google sign-in effect
+  // so they can be listed in its dependency array.
+  // resetFlow only touches refs and mutation.reset() — both are stable — so an
+  // empty dependency array is correct (useCallback gives it a stable identity).
+  const resetFlow = useCallback(() => {
+    if (googlePopupPollRef.current !== null) {
+      window.clearInterval(googlePopupPollRef.current);
+      googlePopupPollRef.current = null;
+    }
+    if (googlePopupMessageRef.current) {
+      window.removeEventListener("message", googlePopupMessageRef.current);
+      googlePopupMessageRef.current = null;
+    }
+    googlePopupChannelRef.current?.close();
+    googlePopupChannelRef.current = null;
+    googlePopupRef.current?.close();
+    googlePopupRef.current = null;
+    setGoogleOAuthPending(false);
+    setStep("email");
+    setEmail("");
+    setChallengeId("");
+    setCode("");
+    setResendSeconds(0);
+    setFeedback("");
+    emailForm.reset();
+    codeForm.reset();
+    emailCodeMutation.reset();
+    verifyEmailMutation.reset();
+    googleSignInMutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // handleOpenChange must be stable so it can safely live in the Google
+  // sign-in effect's dependency array without triggering spurious re-runs.
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetFlow();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetFlow],
+  );
+
   useEffect(() => {
     if (!open || step !== "verification" || resendSeconds <= 0) return;
     const timeoutId = window.setTimeout(
@@ -138,15 +181,27 @@ export function AuthModal({
     [],
   );
 
-  useEffect(() => {
+  // Seed the feedback message from the `notice` prop when the modal opens.
+  // Using a ref-during-render pattern avoids the set-state-in-effect warning
+  // while keeping the same semantics: notice is only applied once on open.
+  const prevNoticeKey = useRef<string | undefined>(undefined);
+  const noticeKey = open ? notice : undefined;
+  if (prevNoticeKey.current !== noticeKey) {
+    prevNoticeKey.current = noticeKey;
     if (open && notice) setFeedback(notice);
-  }, [notice, open]);
+  }
 
-  useEffect(() => {
-    if (googleNonceQuery.isError && open) {
-      setFeedback(readableError(googleNonceQuery.error));
-    }
-  }, [googleNonceQuery.error, googleNonceQuery.isError, open]);
+  // Surface Google Nonce query errors in the feedback field.
+  // Same ref-during-render pattern — the error is stable once set.
+  const prevNonceError = useRef<unknown>(undefined);
+  if (
+    googleNonceQuery.isError &&
+    open &&
+    prevNonceError.current !== googleNonceQuery.error
+  ) {
+    prevNonceError.current = googleNonceQuery.error;
+    setFeedback(readableError(googleNonceQuery.error));
+  }
 
   useEffect(() => {
     const clientId = googleNonceQuery.data?.clientId;
@@ -210,43 +265,12 @@ export function AuthModal({
     };
   }, [
     googleNonceQuery.data,
-    googleSignInMutation.mutate,
+    googleSignInMutation,
+    handleOpenChange,
     open,
     queryClient,
     step,
   ]);
-
-  function resetFlow() {
-    if (googlePopupPollRef.current !== null) {
-      window.clearInterval(googlePopupPollRef.current);
-      googlePopupPollRef.current = null;
-    }
-    if (googlePopupMessageRef.current) {
-      window.removeEventListener("message", googlePopupMessageRef.current);
-      googlePopupMessageRef.current = null;
-    }
-    googlePopupChannelRef.current?.close();
-    googlePopupChannelRef.current = null;
-    googlePopupRef.current?.close();
-    googlePopupRef.current = null;
-    setGoogleOAuthPending(false);
-    setStep("email");
-    setEmail("");
-    setChallengeId("");
-    setCode("");
-    setResendSeconds(0);
-    setFeedback("");
-    emailForm.reset();
-    codeForm.reset();
-    emailCodeMutation.reset();
-    verifyEmailMutation.reset();
-    googleSignInMutation.reset();
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) resetFlow();
-    onOpenChange(nextOpen);
-  }
 
   function submitEmail(values: EmailValues) {
     setFeedback("");
@@ -516,11 +540,11 @@ export function AuthModal({
                   <GraduationCap size={20} />
                 </span>
                 <span className="text-lg font-bold tracking-tight">
-                  Vyasen
+                  {appName}
                 </span>
               </div>
               <Dialog.Title className="text-xl font-semibold tracking-tight">
-                Welcome to Vyasen
+                Welcome to {appName}
               </Dialog.Title>
               <Dialog.Description
                 id="auth-dialog-description"

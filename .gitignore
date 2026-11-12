@@ -13,5 +13,12 @@ coverage/
 
 AGENTS.md
 
+# Internal operational runbooks, tunnel configs & architecture guides
+docs/operations.md
+ngrok.yml
+authentication-*.md
+*-guide.md
+
 .env.example
 env.example
+

@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: vyasen-api
+    runtime: node
+    plan: free
+    branch: develop
+    buildCommand: pnpm install --frozen-lockfile
+    startCommand: pnpm --filter @vyasen/api start
+    healthCheckPath: /api/v1/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        value: "10000"
+      - key: API_PUBLIC_ORIGIN
+        value: https://api.vyasen.com
+      - key: WEB_ORIGINS
+        value: https://vyasen.com,https://www.vyasen.com,https://dev.vyasen.com
+      - key: SESSION_COOKIE_NAME
+        value: vyasen_session
+      - key: SESSION_COOKIE_SAME_SITE
+        value: lax
+      - key: SESSION_COOKIE_DOMAIN
+        value: .vyasen.com
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_CODE_HASH_SECRET
+        sync: false
+      - key: AUTH_STATE_SECRET
+        sync: false
+      - key: AUTH_RATE_LIMIT_SECRET
+        sync: false

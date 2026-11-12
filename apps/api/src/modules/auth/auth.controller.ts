@@ -16,7 +16,6 @@ import type { AuthenticatedContext } from "./auth.guard";
 import type { AuthService } from "./auth.service";
 import type { SessionMetadata } from "./auth.repository";
 
-const oauthStateCookieName = "school_sms_google_oauth";
 const sessionLifetimeSeconds = 30 * 24 * 60 * 60;
 
 export function createAuthController(service: AuthService, config: AppConfig) {
@@ -64,7 +63,7 @@ export function createAuthController(service: AuthService, config: AppConfig) {
       const result = await service.beginGoogleOAuth(
         request.query.returnTo ?? "/",
       );
-      reply.setCookie(oauthStateCookieName, result.cookieValue, {
+      reply.setCookie(config.oauthStateCookieName, result.cookieValue, {
         httpOnly: true,
         secure: config.sessionCookieSecure,
         sameSite: "lax",
@@ -87,7 +86,7 @@ export function createAuthController(service: AuthService, config: AppConfig) {
       }>,
       reply: FastifyReply,
     ) {
-      const stateCookie = request.cookies[oauthStateCookieName];
+      const stateCookie = request.cookies[config.oauthStateCookieName];
       const returnTo = service.googleOAuthReturnTo(stateCookie);
       clearOAuthStateCookie(reply, config);
 
@@ -301,7 +300,7 @@ function clearSessionCookie(reply: FastifyReply, config: AppConfig) {
 }
 
 function clearOAuthStateCookie(reply: FastifyReply, config: AppConfig) {
-  reply.clearCookie(oauthStateCookieName, {
+  reply.clearCookie(config.oauthStateCookieName, {
     httpOnly: true,
     secure: config.sessionCookieSecure,
     sameSite: "lax",
