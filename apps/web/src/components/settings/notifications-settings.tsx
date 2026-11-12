@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Bell,
@@ -101,11 +101,7 @@ function NotificationToggle({
           {description}
         </p>
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onChange}
-        aria-label={label}
-      />
+      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
   );
 }
@@ -115,15 +111,14 @@ export function NotificationsSettings() {
   const navigate = useNavigate();
   const user = sessionQuery.data?.user;
   const userId = user?.id;
-  const [preferences, setPreferences] = useState<NotificationPreferences>(
-    () =>
-      userId
-        ? readNotificationPreferences(userId)
-        : { ...notificationPreferenceDefaults },
+  const [preferences, setPreferences] = useState<NotificationPreferences>(() =>
+    userId
+      ? readNotificationPreferences(userId)
+      : { ...notificationPreferenceDefaults },
   );
-  const [saveStatus, setSaveStatus] = useState<
-    "saved" | "saving" | "error"
-  >("saved");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">(
+    "saved",
+  );
 
   useEffect(() => {
     if (sessionQuery.isSuccess && !user) {
@@ -131,9 +126,14 @@ export function NotificationsSettings() {
     }
   }, [navigate, sessionQuery.isSuccess, user]);
 
-  useEffect(() => {
+  // Seed preferences from localStorage when the user ID first becomes known
+  // (session loads after the initial render). Using a ref-during-render pattern
+  // avoids a redundant re-render that set-state-in-effect would cause.
+  const prevUserId = useRef(userId);
+  if (prevUserId.current !== userId) {
+    prevUserId.current = userId;
     if (userId) setPreferences(readNotificationPreferences(userId));
-  }, [userId]);
+  }
 
   function updatePreference(key: NotificationPreference, value: boolean) {
     if (!userId) return;
@@ -175,7 +175,7 @@ export function NotificationsSettings() {
             <div>
               <h2 className="text-base font-semibold">Notifications</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Choose which school updates you would like to receive.
+                Choose which institution updates you would like to receive.
               </p>
             </div>
           </div>
@@ -186,12 +186,20 @@ export function NotificationsSettings() {
           >
             {saveStatus === "error" ? (
               <>
-                <ShieldCheck aria-hidden="true" className="text-rose-400" size={14} />
+                <ShieldCheck
+                  aria-hidden="true"
+                  className="text-rose-400"
+                  size={14}
+                />
                 Could not save on this device
               </>
             ) : (
               <>
-                <Check aria-hidden="true" className="text-emerald-400" size={14} />
+                <Check
+                  aria-hidden="true"
+                  className="text-emerald-400"
+                  size={14}
+                />
                 {saveStatus === "saving" ? "Saving..." : "Saved on this device"}
               </>
             )}
@@ -220,8 +228,8 @@ export function NotificationsSettings() {
           </SettingsSection>
 
           <SettingsSection
-            title="School activity"
-            description="Fine-tune updates about your attendance, learning, and school."
+            title="Institution activity"
+            description="Fine-tune updates about your attendance, learning, and institution."
           >
             <NotificationToggle
               checked={preferences.attendance}
@@ -246,9 +254,9 @@ export function NotificationsSettings() {
             />
             <NotificationToggle
               checked={preferences.announcements}
-              description="School announcements, events, and important notices."
+              description="Institution announcements, events, and important notices."
               icon={Megaphone}
-              label="School announcements"
+              label="Institution announcements"
               onChange={(value) => updatePreference("announcements", value)}
             />
             <NotificationToggle

@@ -41,7 +41,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const authService = new AuthService({
     db,
     config,
-    emailProvider: new EmailProvider(config.smtp, (failure) => {
+    emailProvider: new EmailProvider(config.smtp, config.appName, (failure) => {
       app.log.error(failure, "Sign-in email delivery failed.");
     }),
     googleProvider,
@@ -134,6 +134,12 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     prefix: "/api/v1/auth",
     service: authService,
     config,
+  });
+
+  // Health check endpoint — used by Render, monitoring tools, and the CI/CD
+  // pipeline to verify the API has started successfully after a deploy.
+  app.get("/api/v1/health", async (_request, reply) => {
+    return reply.code(200).send({ status: "ok" });
   });
 
   app.addHook("onClose", async () => {

@@ -1,0 +1,114 @@
+name: "🐛 Bug Report"
+description: "Report a bug or something broken in Vyasen."
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report security vulnerabilities in public issues.**
+        Please read our [Security Policy](https://github.com/vyasen-org/vyasen/blob/develop/SECURITY.md) and report suspected vulnerabilities privately as described there.
+
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This issue does not disclose a security vulnerability or sensitive security details.
+          required: true
+
+  - type: checkboxes
+    id: platform
+    attributes:
+      label: Where did this happen? (Device / Platform)
+      description: Select all platforms where you experienced or reproduced this issue.
+      options:
+        - label: Web (Desktop browser)
+        - label: Mobile Web (Chrome on Android)
+        - label: Mobile Web (Safari on iOS / iPhone)
+        - label: Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of problem is this?
+      options:
+        - "UI / Visual glitch"
+        - "API / Backend error"
+        - "Authentication (Sign in / Sessions)"
+        - "Settings (Appearance / Sidebar / Profile)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Which area of the platform?
+      description: Select the parts of Vyasen affected.
+      options:
+        - label: Sign in / Authentication (Email OTP, Google OAuth, Google One Tap)
+        - label: Dashboard / Home
+        - label: Settings — Appearance (theme, colors)
+        - label: Settings — Sidebar (placement, navigation)
+        - label: Settings — Profile / Account
+        - label: Settings — Notifications
+        - label: Workspace / Institution context switching
+        - label: Other (please specify below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What went wrong?
+      description: Explain the problem clearly.
+      placeholder: "Tell us what happened..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Tell us step-by-step how to reproduce the issue.
+        💡 You can also drag & drop a screenshot or screen recording below.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "e.g. The dashboard should load and show my institution's information."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or Screen Recording
+      description: Drag and drop any screenshots or screen recordings.
+
+  - type: input
+    id: device-details
+    attributes:
+      label: Device, Browser & System details
+      placeholder: "e.g. Chrome 130 on Windows 11, Safari on iPhone 15 (iOS 18)"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or console logs
+      description: Paste any error messages, API responses, or browser console errors.
+      render: shell
