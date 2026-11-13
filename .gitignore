@@ -2,6 +2,8 @@ node_modules/
 dist/
 .turbo/
 .vite/
+.docusaurus/
+apps/docs/build/
 coverage/
 
 .env
