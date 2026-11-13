@@ -98,6 +98,7 @@ export function AuthModal({
     ((event: MessageEvent<unknown>) => void) | null
   >(null);
   const googlePopupChannelRef = useRef<BroadcastChannel | null>(null);
+  const hasPromptedGoogleRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const emailCodeMutation = useRequestEmailCodeMutation();
   const verifyEmailMutation = useVerifyEmailCodeMutation();
@@ -145,6 +146,8 @@ export function AuthModal({
     emailCodeMutation.reset();
     verifyEmailMutation.reset();
     googleSignInMutation.reset();
+    hasPromptedGoogleRef.current = null;
+    window.google?.accounts?.id?.cancel?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -203,14 +206,25 @@ export function AuthModal({
     setFeedback(readableError(googleNonceQuery.error));
   }
 
+  // Guard to ensure Google Identity Services prompt() is called at most ONCE
+  // per nonce and modal session, preventing infinite /gsi/status network loops.
+  useEffect(() => {
+    if (!open) {
+      hasPromptedGoogleRef.current = null;
+      window.google?.accounts?.id?.cancel?.();
+    }
+  }, [open]);
+
   useEffect(() => {
     const clientId = googleNonceQuery.data?.clientId;
     const nonce = googleNonceQuery.data?.nonce;
     if (!open || step !== "email" || !clientId || !nonce) return;
+    if (hasPromptedGoogleRef.current === nonce) return;
 
     let active = true;
     const initializeGoogle = () => {
       if (!active || !window.google) return;
+      hasPromptedGoogleRef.current = nonce;
       window.google.accounts.id.initialize({
         client_id: clientId,
         nonce,
@@ -222,6 +236,7 @@ export function AuthModal({
               onSuccess: () => handleOpenChange(false),
               onError: (error) => {
                 setFeedback(readableError(error));
+                hasPromptedGoogleRef.current = null;
                 void queryClient.invalidateQueries({
                   queryKey: authKeys.googleNonce(),
                 });

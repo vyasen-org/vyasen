@@ -28,8 +28,9 @@ export function useGoogleNonceQuery(enabled: boolean) {
     queryKey: authKeys.googleNonce(),
     queryFn: ({ signal }) => getGoogleNonce(signal),
     enabled,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 4 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     retry: false,
+    refetchOnWindowFocus: false,
   });
 }
