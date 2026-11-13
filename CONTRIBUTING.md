@@ -80,7 +80,8 @@ Vyasen is structured as a **pnpm workspace** managed with **Turborepo**:
 indic_sms/
 ├── apps/
 │   ├── api/              # Fastify 5 HTTP REST API, authentication, email & Google OAuth
-│   └── web/              # React 19 SPA, Vite, TanStack Router & Query, Tailwind CSS v4
+│   ├── web/              # React 19 SPA, Vite, TanStack Router & Query, Tailwind CSS v4
+│   └── docs/             # Static Docusaurus project hub and documentation
 ├── packages/
 │   ├── config/           # Shared tooling & workspace configurations
 │   ├── contracts/        # Shared Zod validation schemas, DTOs, and TypeScript types
