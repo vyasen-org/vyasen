@@ -1,4 +1,11 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   createRootRoute,
   Outlet,
@@ -196,6 +203,24 @@ function RootLayout() {
     navigate,
   ]);
 
+  const handleAuthModalOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        void navigate({
+          to: currentLocation.pathname,
+          search: (previous) => ({
+            ...previous,
+            login: undefined,
+            auth: undefined,
+          }),
+          hash: currentLocation.hash,
+          replace: true,
+        });
+      }
+    },
+    [currentLocation.hash, currentLocation.pathname, navigate],
+  );
+
   return (
     <>
       <Outlet />
@@ -203,20 +228,7 @@ function RootLayout() {
         <AuthModal
           open={loginOpen}
           notice={notice}
-          onOpenChange={(open) => {
-            if (!open) {
-              void navigate({
-                to: currentLocation.pathname,
-                search: (previous) => ({
-                  ...previous,
-                  login: undefined,
-                  auth: undefined,
-                }),
-                hash: currentLocation.hash,
-                replace: true,
-              });
-            }
-          }}
+          onOpenChange={handleAuthModalOpenChange}
         />
       </Suspense>
     </>
