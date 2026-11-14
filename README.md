@@ -35,6 +35,7 @@ setup, schema, flow, and deployment details.
 apps/
   api/              Fastify API and email/Google authentication
   web/              React, Vite, TanStack Router and Query
+  docs/             Static Docusaurus project hub and documentation
 packages/
   config/           Reserved for shared configuration
   contracts/        Shared Zod contracts and TypeScript types
@@ -57,3 +58,7 @@ navigation changes with the selected demo role.
 Authentication does not assign an institution, membership, role, or permission.
 Those must be granted by later institution-onboarding and membership workflows;
 frontend role previews are not an authorization boundary.
+
+The static public documentation and project hub live in
+[`apps/docs`](./apps/docs/README.md); they can be built and deployed separately
+from the application API and database.

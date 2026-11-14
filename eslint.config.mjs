@@ -10,7 +10,9 @@ export default tseslint.config(
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
+      "apps/docs/build/**",
       "**/.turbo/**",
+      "**/.docusaurus/**",
       "pnpm-lock.yaml",
     ],
   },

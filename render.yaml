@@ -24,7 +24,7 @@ services:
       - key: SESSION_COOKIE_SAME_SITE
         value: lax
       - key: SESSION_COOKIE_DOMAIN
-        value: .vyasen.com
+        value: api.vyasen.com
       - key: TRUST_PROXY
         value: "1"
       - key: DATABASE_URL
