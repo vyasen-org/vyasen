@@ -1,0 +1,11 @@
+{
+  "extends": "@docusaurus/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["@docusaurus/module-type-aliases", "node"]
+  },
+  "include": ["src", "plugins", "docusaurus.config.ts", "sidebars.ts"],
+  "exclude": ["node_modules", "build"]
+}

@@ -55,7 +55,6 @@ jobs:
       - name: Test
         run: pnpm test
 
-      # Verify the Vite bundle compiles cleanly.
-      # VITE_API_BASE_URL falls back to https://api.vyasen.com from .env.production.
+      # Verify the web app and static documentation site build cleanly.
       - name: Build
         run: pnpm build
