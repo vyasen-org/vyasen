@@ -1,4 +1,5 @@
 import { z } from "zod";
+export * from "./identity";
 
 export const workspaceRoles = [
   "admin",
@@ -29,6 +30,11 @@ export {
   authEmailCodeRequestSchema,
   authEmailCodeResponseSchema,
   authEmailCodeVerificationSchema,
+  authPhoneCodeRequestSchema,
+  authPhoneCodeResponseSchema,
+  authPhoneCodeVerificationSchema,
+  authPasswordSignInSchema,
+  authPasswordSignupSchema,
   authErrorResponseSchema,
   authGoogleCredentialSchema,
   authGoogleAuthorizeQuerySchema,
@@ -45,6 +51,11 @@ export type {
   AuthEmailCodeRequest,
   AuthEmailCodeResponse,
   AuthEmailCodeVerification,
+  AuthPhoneCodeRequest,
+  AuthPhoneCodeResponse,
+  AuthPhoneCodeVerification,
+  AuthPasswordSignIn,
+  AuthPasswordSignup,
   AuthGoogleCredential,
   AuthGoogleAuthorizeQuery,
   AuthGoogleCallbackQuery,

@@ -51,6 +51,7 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: logout,
     onSuccess: async () => {
+      queryClient.clear();
       queryClient.setQueryData(authKeys.session(), null);
       await queryClient.removeQueries({ queryKey: authKeys.sessions() });
       await queryClient.removeQueries({ queryKey: authKeys.googleNonce() });
@@ -71,6 +72,7 @@ export function useLogoutAllSessionsMutation() {
   return useMutation({
     mutationFn: logoutAllSessions,
     onSuccess: async () => {
+      queryClient.clear();
       queryClient.setQueryData(authKeys.session(), null);
       await queryClient.removeQueries({ queryKey: authKeys.sessions() });
       await queryClient.removeQueries({ queryKey: authKeys.googleNonce() });

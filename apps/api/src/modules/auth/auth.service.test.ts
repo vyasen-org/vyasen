@@ -37,6 +37,7 @@ const testConfig: AppConfig = {
   sessionCookieSameSite: "lax",
   sessionCookieSecure: false,
   smtp: null,
+  sms: null,
   trustProxy: false,
   webOrigins: ["http://localhost:3000"],
 };
@@ -85,9 +86,12 @@ test(
       const migration = await migrator.migrateToLatest();
       if (migration.error) throw migration.error;
 
-      await db.deleteFrom("email_verification_codes").execute();
+      await db.deleteFrom("auth_challenges").execute();
       await db.deleteFrom("auth_rate_limits").execute();
       await db.deleteFrom("auth_nonces").execute();
+      await db.deleteFrom("user_contacts").execute();
+      await db.deleteFrom("auth_identities").execute();
+      await db.deleteFrom("personal_profiles").execute();
       await db.deleteFrom("users").execute();
 
       const emailProvider = new CapturingEmailProvider();
@@ -128,12 +132,20 @@ test(
           rejected[0].reason.code === "invalid_verification_code",
       );
 
+      const identity = await db
+        .selectFrom("auth_identities")
+        .select(["user_id", "provider", "provider_subject", "verified_at"])
+        .where("provider", "=", "email")
+        .where("provider_subject", "=", email)
+        .executeTakeFirstOrThrow();
+      assert.equal(identity.verified_at instanceof Date, true);
+
       const user = await db
         .selectFrom("users")
-        .select(["id", "email", "email_verified_at"])
-        .where("email", "=", email)
+        .select(["id", "status", "last_login_at"])
+        .where("id", "=", identity.user_id)
         .executeTakeFirstOrThrow();
-      assert.equal(user.email_verified_at instanceof Date, true);
+      assert.equal(user.last_login_at instanceof Date, true);
 
       const firstSession = await db
         .selectFrom("sessions")

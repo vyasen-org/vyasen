@@ -5,6 +5,8 @@ dist/
 .docusaurus/
 apps/docs/build/
 coverage/
+apps/web/test-results/
+apps/web/playwright-report/
 
 .env
 .env.*
@@ -13,7 +15,10 @@ coverage/
 *.log
 *.tsbuildinfo
 
-AGENTS.md
+# Keep the repository's contributor and coding-agent instructions versioned.
+!AGENTS.md
+!apps/api/AGENTS.md
+!apps/web/AGENTS.md
 
 # Internal operational runbooks, tunnel configs & architecture guides
 docs/operations.md
