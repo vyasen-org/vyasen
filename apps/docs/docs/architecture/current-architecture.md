@@ -46,7 +46,7 @@ verified memberships, contextual authorization, document governance, and an
 extension ecosystem. These are **product directions and requirements**, not
 claims that those complete capabilities exist today.
 
-The [Phase 1 database design](./phase-1-database-design.md) is a proposed
+The [Identity & Authentication Architecture](./identity-and-authentication.md) is a proposed
 implementation reference. Consult the current migrations and API before
 describing any table or flow as implemented.
 

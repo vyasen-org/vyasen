@@ -165,7 +165,7 @@ jobs:
       deployments: write
     environment:
       name: development
-      url: https://doc.vyasen.com
+      url: https://docs.vyasen.com
 
     steps:
       - name: Check out repository

@@ -17,9 +17,9 @@ const sidebars = {
       items: [
         "product/vision",
         "product/overview",
-        "product/goals-and-principles",
-        "product/scope-and-boundaries",
-        "product/initial-requirements",
+        "product/principles",
+        "product/scope",
+        "product/product-requirements",
       ],
     },
     {
@@ -27,7 +27,7 @@ const sidebars = {
       label: "Architecture",
       items: [
         "architecture/current-architecture",
-        "architecture/phase-1-database-design",
+        "architecture/identity-and-authentication",
       ],
     },
     {

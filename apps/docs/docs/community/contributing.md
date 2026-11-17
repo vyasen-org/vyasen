@@ -11,7 +11,7 @@ reviewable changes are all valuable.
 
 ## Before starting
 
-1. Review the [product vision](../product/vision.md), [scope](../product/scope-and-boundaries.md),
+1. Review the [Product Vision](../product/vision.md), [Scope & Boundaries](../product/scope.md),
    and [current status](../project/development-status.md).
 2. Search existing [issues](https://github.com/vyasen-org/vyasen/issues) before
    opening a new one.
