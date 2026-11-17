@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { IdentityForm } from "./identity-form";
 import { appName } from "@/lib/app-config";
 import { ApiError, apiBaseUrl } from "@/lib/api-client";
 import {
@@ -596,6 +597,7 @@ export function AuthModal({
                   <span className="h-px flex-1 bg-border" />
                 </div>
 
+                <IdentityForm onSuccess={() => handleOpenChange(false)} />
                 <form
                   className="space-y-3"
                   noValidate
