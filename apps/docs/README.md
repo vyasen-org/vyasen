@@ -1,7 +1,7 @@
 # Vyasen Project Hub
 
 The Docusaurus application publishes the public Project Hub at
-`https://doc.vyasen.com`. It is a static site: public documentation and generated
+`https://docs.vyasen.com`. It is a static site: public documentation and generated
 GitHub snapshots do not require the Vyasen API, user authentication, or a
 database.
 
@@ -28,33 +28,47 @@ honest fallback states on the Project Hub.
 
 ## Cloudflare Pages
 
-Create a Cloudflare Pages project (the workflow expects `vyasen-docs`) and
-configure the repository’s existing deployment environment:
+The repository deploys the docs with the `deploy-docs` job in
+`.github/workflows/deploy.yml`; it builds the site and runs
+`wrangler pages deploy apps/docs/build --project-name=vyasen-docs` on pushes to
+`develop`.
 
-- Build command: `pnpm install --frozen-lockfile && pnpm --filter @vyasen/docs build`
-- Build output directory: `apps/docs/build`
-- Root directory: repository root
-- Build environment: Node.js 24 and pnpm 12
-- GitHub Actions secrets/variables: reuse `CLOUDFLARE_API_TOKEN` and
-  `CLOUDFLARE_ACCOUNT_ID` from the existing web deployment.
+Create a **Cloudflare Pages** project named `vyasen-docs` using Direct Upload.
+Do not configure this as a Workers project or run `wrangler deploy`: that
+command deploys a Worker, while this app produces static Pages assets. The
+Pages project does not need a dashboard build command, deploy command, runtime
+variables, secrets, or bindings. The build runs in GitHub Actions with Node.js
+24 and pnpm 12.
 
-The `deploy-docs` job in `.github/workflows/deploy.yml` publishes on pushes to
-`develop`. Production domain setup is an operator action: attach
-`doc.vyasen.com` to the Cloudflare Pages project and configure DNS in Cloudflare.
-This repository change does not deploy the site or modify DNS.
+Configure GitHub Actions with:
+
+- `CLOUDFLARE_API_TOKEN` as a secret with the account-level Cloudflare Pages
+  edit permission.
+- `CLOUDFLARE_ACCOUNT_ID` as a repository or environment variable.
+
+The workflow expects those names and deploys to the Pages project
+`vyasen-docs`. Set the Pages production branch to `develop` to match the
+workflow trigger. Attach `docs.vyasen.com` to the Pages project and configure
+DNS in Cloudflare. These are operator actions; this repository does not deploy
+the site or modify DNS by itself.
+
+If configuring a Git-connected Pages build instead of using the existing
+workflow, use the repository root as the build root, build command
+`pnpm install --frozen-lockfile && pnpm --filter @vyasen/docs build`, and output
+directory `apps/docs/build`. Do not enable both deployment paths at once.
 
 ## Self-hosting and configuration
 
 The docs app can be built independently of Cloudflare. Configure public site
 metadata at build time with:
 
-| Variable           | Default                  | Purpose                                     |
-| ------------------ | ------------------------ | ------------------------------------------- |
-| `DOCS_SITE_NAME`   | `Vyasen Project Hub`     | Site title                                  |
-| `DOCS_URL`         | `https://doc.vyasen.com` | Canonical deployment origin                 |
-| `DOCS_BASE_URL`    | `/`                      | Base path for installations under a subpath |
-| `DOCS_GITHUB_ORG`  | `vyasen-org`             | Public GitHub organization                  |
-| `DOCS_GITHUB_REPO` | `vyasen`                 | Public GitHub repository                    |
+| Variable           | Default                   | Purpose                                     |
+| ------------------ | ------------------------- | ------------------------------------------- |
+| `DOCS_SITE_NAME`   | `Vyasen Project Hub`      | Site title                                  |
+| `DOCS_URL`         | `https://docs.vyasen.com` | Canonical deployment origin                 |
+| `DOCS_BASE_URL`    | `/`                       | Base path for installations under a subpath |
+| `DOCS_GITHUB_ORG`  | `vyasen-org`              | Public GitHub organization                  |
+| `DOCS_GITHUB_REPO` | `vyasen`                  | Public GitHub repository                    |
 
 No secrets are needed for the public GitHub snapshot. If an operator does not
 want this documentation site, they can omit its deployment; it is not required

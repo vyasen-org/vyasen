@@ -1,8 +1,14 @@
-# Vyasen — Goals and Product Principles
+---
+title: Goals & Principles
+description: The goals and principles guiding Vyasen's product direction.
+slug: /product/goals-and-principles
+---
 
-- **Document:** Goals and Principles
+# Goals & Principles
+
+- **Document:** Goals & Principles
 - **Version:** 0.1
-- **Status:** Initial baseline; evolving
+- **Status:** Evolving baseline
 - **Last updated:** 2026-11-12
 
 ## 1. Product goals

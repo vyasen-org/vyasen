@@ -1,8 +1,8 @@
-# Vyasen — Product Overview
+# Product Overview
 
 - **Document:** Product Overview
 - **Version:** 0.1
-- **Status:** Initial baseline; evolving
+- **Status:** Evolving baseline
 - **Last updated:** 2026-11-12
 
 ## 1. What is Vyasen?
@@ -154,7 +154,7 @@ Vyasen should support two verification approaches:
 
 Detailed lifecycle, correction, revocation, retention and verification protocols are deferred for later design.
 
-## 9. Initial capability areas
+## 9. Capability landscape
 
 The platform's conceptual capability areas include:
 

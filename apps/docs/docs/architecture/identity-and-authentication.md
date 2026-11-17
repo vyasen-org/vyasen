@@ -1,17 +1,24 @@
+---
+title: Identity & Authentication Architecture
+description: Proposed global identity, authentication, profile, contact, session, and security data design.
+slug: /architecture/phase-1-database-design
+---
+
 > **Project Hub status: Planned design reference.** This document describes a
-> proposed Phase 1 schema and implementation approach. It is not evidence that
-> every table, field, constraint, or flow below exists in the current
+> proposed identity and authentication schema and implementation approach. It
+> is not evidence that every table, field, constraint, or flow below exists in the current
 > repository. Check the actual migrations before relying on an implementation
 > claim.
 
-# Vyasen — Phase 1 Database Design
+# Identity & Authentication Architecture
 
-- **Status:** Approved requirements / proposed implementation baseline
+- **Specification status:** Accepted requirements; proposed implementation design
+- **Implementation status:** Planned
 - **Version:** 1.0 · 2026-11-13
 - **Platform:** PostgreSQL 18, Kysely, TypeScript
 - **Scope:** Global accounts, personal profiles and contacts, authentication, OTP, sessions and security.
 
-> This document is the Phase 1 implementation design, not a claim that the SQL has been executed or independently security-audited. It supersedes the disposable development schema. Institutional memberships, roles, family verification, portfolio records and institutional contact approval are explicitly deferred.
+> This document describes the proposed identity and authentication implementation design, not a claim that the SQL has been executed or independently security-audited. It supersedes the disposable development schema. Institutional memberships, roles, family verification, portfolio records and institutional contact approval are explicitly deferred.
 
 ## 1. Requirements and boundaries
 
@@ -23,7 +30,7 @@
 - Multiple verified personal emails/phones, one primary per type; contact records do not grant login rights. Contacts may eventually be shared only by verified eligible family members; **do not enable shared-contact registration until relationship verification exists**.
 - Authentication identifiers are uniquely owned by a single account. Never infer account ownership or auto-link from matching provider email, personal contact, surname or family relationship.
 - Account linking requires existing-account authentication or a separately approved secure linking flow; never lock users out by unlinking their last usable method.
-- Institutional contacts are separate, never automatically synchronized. No institution-specific columns in Phase 1 tables.
+- Institutional contacts are separate, never automatically synchronized. No institution-specific columns are included in this schema.
 - The frontend is not a security boundary. All feature gates, OTP checks, authorization and session checks are enforced server-side.
 
 ## 2. Data ownership and relationship diagram
@@ -137,23 +144,23 @@ Create one profile row in the same transaction as every user. Do not require a n
 | `user_id`                  | uuid        | NOT NULL FK `users.id` ON DELETE CASCADE                  |
 | `type`                     | varchar(10) | NOT NULL, CHECK (`email`,`phone`)                         |
 | `normalized_value`         | text        | NOT NULL; email canonicalized conservatively, phone E.164 |
-| `verified_at`              | timestamptz | NOT NULL for persisted active contacts in Phase 1         |
+| `verified_at`              | timestamptz | NOT NULL for persisted active contacts in this schema     |
 | `is_primary`               | boolean     | NOT NULL default false                                    |
 | `created_at`, `updated_at` | timestamptz | NOT NULL default now()                                    |
 
-Indexes: UNIQUE (`user_id`,`type`,`normalized_value`); partial UNIQUE (`user_id`,`type`) WHERE `is_primary`; index (`type`,`normalized_value`) for duplicate detection (not unique globally). Require normalized value and length checks at API and database where feasible. New contacts must be verified **before** insertion (unverified proposed destinations live in `auth_challenges`). One primary **at most** per type is DB-enforced; for users with any contacts of that type, the service transaction must establish exactly one primary. Change-primary operations serialize using a `users` row lock to avoid races. Do not use a personal contact lookup alone to resolve authentication. Shared contacts require family verification **before the feature is enabled**; current Phase 1 API can reject cross-user duplicates until then, without a global UNIQUE index that would obstruct future sharing.
+Indexes: UNIQUE (`user_id`,`type`,`normalized_value`); partial UNIQUE (`user_id`,`type`) WHERE `is_primary`; index (`type`,`normalized_value`) for duplicate detection (not unique globally). Require normalized value and length checks at API and database where feasible. New contacts must be verified **before** insertion (unverified proposed destinations live in `auth_challenges`). One primary **at most** per type is DB-enforced; for users with any contacts of that type, the service transaction must establish exactly one primary. Change-primary operations serialize using a `users` row lock to avoid races. Do not use a personal contact lookup alone to resolve authentication. Shared contacts require family verification **before the feature is enabled**; the proposed API can reject cross-user duplicates until then, without a global UNIQUE index that would obstruct future sharing.
 
 ### 3.4 `auth_identities` — unique account login ownership
 
-| Column             | Type        | Rule                                                                |
-| ------------------ | ----------- | ------------------------------------------------------------------- |
-| `id`               | uuid        | PK                                                                  |
-| `user_id`          | uuid        | NOT NULL FK `users.id` ON DELETE CASCADE                            |
-| `provider`         | varchar(32) | NOT NULL; Phase 1 `email`,`phone`,`google`; future `github`,`apple` |
-| `provider_subject` | text        | NOT NULL; canonical email, E.164 phone, or stable provider `sub`    |
-| `verified_at`      | timestamptz | NOT NULL                                                            |
-| `created_at`       | timestamptz | NOT NULL default now()                                              |
-| `last_used_at`     | timestamptz | nullable                                                            |
+| Column             | Type        | Rule                                                                             |
+| ------------------ | ----------- | -------------------------------------------------------------------------------- |
+| `id`               | uuid        | PK                                                                               |
+| `user_id`          | uuid        | NOT NULL FK `users.id` ON DELETE CASCADE                                         |
+| `provider`         | varchar(32) | NOT NULL; this design includes `email`,`phone`,`google`; future `github`,`apple` |
+| `provider_subject` | text        | NOT NULL; canonical email, E.164 phone, or stable provider `sub`                 |
+| `verified_at`      | timestamptz | NOT NULL                                                                         |
+| `created_at`       | timestamptz | NOT NULL default now()                                                           |
+| `last_used_at`     | timestamptz | nullable                                                                         |
 
 UNIQUE (`provider`,`provider_subject`) ensures an authentication identity can never belong to two accounts. UNIQUE (`user_id`,`provider`,`provider_subject`) is redundant and omitted. **Do not add UNIQUE (`user_id`,`provider`)**: multiple verified email/phone identities or multiple accounts at a future provider may be linked if security rules permit. Index (`user_id`,`provider`). Google OAuth and One Tap share `provider='google'` and the same provider subject. The provider's email claim is not the provider subject and never triggers automatic account merging. `auth_identities` is the authoritative lookup for email/phone OTP and email/password login, not `user_contacts`.
 
@@ -320,4 +327,4 @@ Because existing data is disposable, rebuilding development migrations is accept
 5. **Data retention:** Set expiry cleanup, audit retention and personal-data deletion rules before production.
 6. **Login identifier availability:** For an account that has only a Google identity, ensure login remains possible without creating an email auth identity; account recovery and email linking require explicit proof.
 
-**Outcome:** The Phase 1 schema is designed to be small, enforce core security boundaries, and allow future institutional and family features without conflating contact information with login ownership.
+**Outcome:** The identity and authentication schema is designed to be small, enforce core security boundaries, and allow future institutional and family features without conflating contact information with login ownership.

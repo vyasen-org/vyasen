@@ -1,8 +1,8 @@
-# Vyasen — Product Vision
+# Product Vision
 
 - **Document:** Product Vision
 - **Version:** 0.1
-- **Status:** Initial baseline; evolving
+- **Status:** Evolving baseline
 - **Last updated:** 2026-11-12
 
 ## 1. Vision statement

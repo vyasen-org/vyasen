@@ -17,7 +17,7 @@ const config: Config = {
   title: process.env.DOCS_SITE_NAME ?? "Vyasen Project Hub",
   tagline: "The vision, architecture, and community behind Vyasen",
   favicon: "img/app-icon.jpg",
-  url: process.env.DOCS_URL ?? "https://doc.vyasen.com",
+  url: process.env.DOCS_URL ?? "https://docs.vyasen.com",
   baseUrl,
   organizationName,
   projectName,
@@ -101,7 +101,7 @@ const config: Config = {
         {
           title: "Explore",
           items: [
-            { label: "Project overview", to: "/docs/introduction" },
+            { label: "Project introduction", to: "/docs/introduction" },
             {
               label: "Development status",
               to: "/docs/project/development-status",
