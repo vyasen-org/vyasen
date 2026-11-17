@@ -1,8 +1,14 @@
-# Vyasen — Scope and Boundaries
+---
+title: Scope & Boundaries
+description: Product scope, ownership, trust, and authorization boundaries.
+slug: /product/scope-and-boundaries
+---
 
-- **Document:** Scope and Boundaries
+# Scope & Boundaries
+
+- **Document:** Scope & Boundaries
 - **Version:** 0.1
-- **Status:** Initial baseline; evolving
+- **Status:** Evolving baseline
 - **Last updated:** 2026-11-12
 
 ## 1. Purpose
@@ -26,21 +32,21 @@ Students, teachers, parents or guardians, administrators, non-teaching staff, al
 
 ## 3. Product scope areas
 
-| Area                               | Scope direction                                                                  | Detailed design status                                                  |
-| ---------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Global identity and authentication | Individual account independent of institutions                                   | Initial auth work exists; review and document implementation separately |
-| Personal area and portfolio        | Personal profile, education journey, credentials and documents                   | Concept agreed; detailed data model pending                             |
-| Public profile                     | Opt-in, user-selected public information and visitor preview                     | Concept agreed; detailed controls pending                               |
-| Workspaces                         | Independent institutional and parent-organization contexts                       | Concept agreed                                                          |
-| Memberships                        | Verified relationships connecting people to workspaces                           | Concept agreed; lifecycle details pending                               |
-| Roles and permissions              | Contextual roles, permissions and scopes                                         | Direction agreed; authorization model to be designed                    |
-| Organization hierarchy             | Parent groups, institutions and internal organizational units                    | Concept agreed; detailed model pending                                  |
-| Modules                            | Core, optional, community and third-party capabilities                           | Governance direction agreed; module framework pending                   |
-| Extensions                         | Permission-scoped APIs by default; trusted self-hosted extensions under controls | Hybrid direction agreed; technical model pending                        |
-| Academic operations                | Classes, courses, schedules, attendance, exams and results                       | Capability area; release scope pending                                  |
-| Administrative operations          | Staff, communications, calendars, documents, facilities, library, fees and HR    | Capability area; release scope pending                                  |
-| Document sharing and verification  | Issuer policies, owner consent, controlled requests and verification             | Core rules agreed; detailed workflows pending                           |
-| Hosted and self-hosted deployment  | Both deployment models intended                                                  | Deployment/edition details pending                                      |
+| Area                               | Scope direction                                                                  | Detailed design status                                                          |
+| ---------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Global identity and authentication | Individual account independent of institutions                                   | Authentication foundation exists; review and document implementation separately |
+| Personal area and portfolio        | Personal profile, education journey, credentials and documents                   | Concept agreed; detailed data model pending                                     |
+| Public profile                     | Opt-in, user-selected public information and visitor preview                     | Concept agreed; detailed controls pending                                       |
+| Workspaces                         | Independent institutional and parent-organization contexts                       | Concept agreed                                                                  |
+| Memberships                        | Verified relationships connecting people to workspaces                           | Concept agreed; lifecycle details pending                                       |
+| Roles and permissions              | Contextual roles, permissions and scopes                                         | Direction agreed; authorization model to be designed                            |
+| Organization hierarchy             | Parent groups, institutions and internal organizational units                    | Concept agreed; detailed model pending                                          |
+| Modules                            | Core, optional, community and third-party capabilities                           | Governance direction agreed; module framework pending                           |
+| Extensions                         | Permission-scoped APIs by default; trusted self-hosted extensions under controls | Hybrid direction agreed; technical model pending                                |
+| Academic operations                | Classes, courses, schedules, attendance, exams and results                       | Capability area; release scope pending                                          |
+| Administrative operations          | Staff, communications, calendars, documents, facilities, library, fees and HR    | Capability area; release scope pending                                          |
+| Document sharing and verification  | Issuer policies, owner consent, controlled requests and verification             | Core rules agreed; detailed workflows pending                                   |
+| Hosted and self-hosted deployment  | Both deployment models intended                                                  | Deployment/edition details pending                                              |
 
 ## 4. Important boundaries
 

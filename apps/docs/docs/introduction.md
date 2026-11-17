@@ -12,14 +12,14 @@ the public guide to its **product direction**, **current implementation**,
 
 ## Choose a path
 
-- **Understand the product:** read the [vision](./product/vision.md), [overview](./product/overview.md),
-  and [goals and principles](./product/goals-and-principles.md).
-- **Evaluate the project:** review its [scope](./product/scope-and-boundaries.md),
-  [requirements](./product/initial-requirements.md), and
+- **Understand the product:** read the [Product Vision](./product/vision.md), [Product Overview](./product/overview.md),
+  and [Goals & Principles](./product/principles.md).
+- **Evaluate the project:** review its [Scope & Boundaries](./product/scope.md),
+  [Product Requirements](./product/product-requirements.md), and
   [development status](./project/development-status.md).
 - **Explore the code and design:** start with the
   [current architecture](./architecture/current-architecture.md). The
-  [Phase 1 database design](./architecture/phase-1-database-design.md) is a
+  [Identity & Authentication Architecture](./architecture/identity-and-authentication.md) is a
   planned design reference, not a description of the current schema.
 - **Get involved:** see the [contribution guide](./community/contributing.md)
   or browse the [contributors showcase](/community/contributors).
