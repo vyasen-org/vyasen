@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AuthSessionResponse } from "@vyasen/contracts";
+import { identityKeys } from "./identity.service";
 
 import {
   authKeys,
@@ -15,13 +17,31 @@ export function useRequestEmailCodeMutation() {
   return useMutation({ mutationFn: requestEmailCode });
 }
 
+export async function adoptAuthSession(
+  queryClient: ReturnType<typeof useQueryClient>,
+  session: AuthSessionResponse,
+) {
+  await queryClient.cancelQueries({ queryKey: identityKeys.all });
+  await queryClient.cancelQueries({ queryKey: authKeys.session() });
+  queryClient.removeQueries({ queryKey: identityKeys.all });
+  queryClient.setQueryData(authKeys.session(), session);
+  await queryClient.invalidateQueries({ queryKey: authKeys.sessions() });
+}
+
+export async function clearPrivateSession(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  await queryClient.cancelQueries();
+  queryClient.clear();
+  queryClient.setQueryData(authKeys.session(), null);
+}
+
 export function useVerifyEmailCodeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: verifyEmailCode,
     onSuccess: async (session) => {
-      queryClient.setQueryData(authKeys.session(), session);
-      await queryClient.invalidateQueries({ queryKey: authKeys.sessions() });
+      await adoptAuthSession(queryClient, session);
     },
   });
 }
@@ -31,8 +51,7 @@ export function useGoogleSignInMutation() {
   return useMutation({
     mutationFn: signInWithGoogleCredential,
     onSuccess: async (session) => {
-      queryClient.setQueryData(authKeys.session(), session);
-      await queryClient.invalidateQueries({ queryKey: authKeys.sessions() });
+      await adoptAuthSession(queryClient, session);
     },
   });
 }
@@ -51,10 +70,7 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: logout,
     onSuccess: async () => {
-      queryClient.clear();
-      queryClient.setQueryData(authKeys.session(), null);
-      await queryClient.removeQueries({ queryKey: authKeys.sessions() });
-      await queryClient.removeQueries({ queryKey: authKeys.googleNonce() });
+      await clearPrivateSession(queryClient);
     },
   });
 }
@@ -63,7 +79,11 @@ export function useRevokeSessionMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: revokeSession,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.all }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: authKeys.all });
+      if (!queryClient.getQueryData(authKeys.session()))
+        await clearPrivateSession(queryClient);
+    },
   });
 }
 
@@ -72,10 +92,7 @@ export function useLogoutAllSessionsMutation() {
   return useMutation({
     mutationFn: logoutAllSessions,
     onSuccess: async () => {
-      queryClient.clear();
-      queryClient.setQueryData(authKeys.session(), null);
-      await queryClient.removeQueries({ queryKey: authKeys.sessions() });
-      await queryClient.removeQueries({ queryKey: authKeys.googleNonce() });
+      await clearPrivateSession(queryClient);
     },
   });
 }

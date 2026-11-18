@@ -8,11 +8,15 @@ import { authKeys } from "@/services/auth/auth.service";
 
 const field =
   "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm";
-export function IdentitySettings() {
+export function IdentitySettings({ userId }: { userId: string }) {
   const client = useQueryClient();
   const account = useQuery({
-    queryKey: identityKeys,
+    queryKey: identityKeys.account(userId),
     queryFn: identityApi.account,
+  });
+  const availability = useQuery({
+    queryKey: ["auth", "availability"],
+    queryFn: identityApi.availability,
   });
   const [challenge, setChallenge] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
@@ -40,7 +44,7 @@ export function IdentitySettings() {
     defaultValues: { destination: "", code: "", purpose: "contact_verify" },
   });
   const refresh = async () => {
-    await client.invalidateQueries({ queryKey: identityKeys });
+    await client.invalidateQueries({ queryKey: identityKeys.account(userId) });
     await client.invalidateQueries({ queryKey: authKeys.session() });
   };
   const save = useMutation({
@@ -91,8 +95,18 @@ export function IdentitySettings() {
     },
   });
   const action = useMutation({
-    mutationFn: ({ id, kind }: { id: string; kind: "primary" | "unlink" }) =>
-      kind === "primary" ? identityApi.primary(id) : identityApi.unlink(id),
+    mutationFn: ({
+      id,
+      kind,
+    }: {
+      id: string;
+      kind: "primary" | "unlink" | "remove_contact";
+    }) =>
+      kind === "primary"
+        ? identityApi.primary(id)
+        : kind === "remove_contact"
+          ? identityApi.removeContact(id)
+          : identityApi.unlink(id),
     onSuccess: refresh,
   });
   if (account.isPending) return <p role="status">Loading account details...</p>;
@@ -146,6 +160,16 @@ export function IdentitySettings() {
               Make primary
             </Button>
           )}
+          <Button
+            variant="outline"
+            disabled={action.isPending}
+            onClick={() => {
+              if (window.confirm("Remove this personal contact?"))
+                action.mutate({ id: contact.id, kind: "remove_contact" });
+            }}
+          >
+            Remove contact
+          </Button>
         </div>
       ))}
       <h3 className="text-sm font-semibold">Authentication identities</h3>
@@ -208,7 +232,19 @@ export function IdentitySettings() {
             />
           </label>
         )}
-        <Button disabled={verify.isPending}>
+        {verification.watch("destination").startsWith("+") &&
+          availability.data?.sms === false && (
+            <p role="status" className="text-sm text-muted-foreground">
+              SMS is unavailable. Use an email address instead.
+            </p>
+          )}
+        <Button
+          disabled={
+            verify.isPending ||
+            (verification.watch("destination").startsWith("+") &&
+              availability.data?.sms === false)
+          }
+        >
           {verify.isPending
             ? "Please wait..."
             : challenge

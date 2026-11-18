@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { identityApi } from "@/services/auth/identity.service";
-import { authKeys } from "@/services/auth/auth.service";
+import { adoptAuthSession } from "@/services/auth/auth.mutations";
 
 const field =
   "h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20";
@@ -89,8 +89,7 @@ export function IdentityForm({ onSuccess }: { onSuccess: () => void }) {
         return;
       }
       if ("user" in result) {
-        query.clear();
-        query.setQueryData(authKeys.session(), result);
+        await adoptAuthSession(query, result);
         onSuccess();
       }
     },

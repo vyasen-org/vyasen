@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { IdentityForm } from "./identity-form";
 import { appName } from "@/lib/app-config";
 import { ApiError, apiBaseUrl } from "@/lib/api-client";
+import { adoptAuthSession } from "@/services/auth/auth.mutations";
 import {
   authKeys,
   getAuthSession,
@@ -350,7 +351,7 @@ export function AuthModal({
     );
   }
 
-  function finishGoogleOAuth(
+  async function finishGoogleOAuth(
     popup: Window,
     session: Awaited<ReturnType<typeof getAuthSession>>,
   ) {
@@ -367,7 +368,7 @@ export function AuthModal({
     googlePopupChannelRef.current = null;
     googlePopupRef.current = null;
     popup.close();
-    queryClient.setQueryData(authKeys.session(), session);
+    await adoptAuthSession(queryClient, session);
     handleOpenChange(false);
     return true;
   }
@@ -452,8 +453,8 @@ export function AuthModal({
         return;
       checkingSession = true;
       void getAuthSession()
-        .then((session) => {
-          if (!finishGoogleOAuth(popup, session)) {
+        .then(async (session) => {
+          if (!(await finishGoogleOAuth(popup, session))) {
             throw new ApiError(
               502,
               "oauth_session_unavailable",

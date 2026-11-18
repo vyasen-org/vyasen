@@ -84,5 +84,15 @@ export function identityController(
       },
     ) =>
       service.changeMethod(req.authContext!.user.id, req.params.id, "unlink"),
+    removeContact: async (
+      req: Pick<FastifyRequest, "authContext"> & {
+        params: z.infer<typeof accountItemSchema>;
+      },
+    ) =>
+      service.changeMethod(
+        req.authContext!.user.id,
+        req.params.id,
+        "remove_contact",
+      ),
   };
 }

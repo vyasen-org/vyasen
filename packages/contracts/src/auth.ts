@@ -21,7 +21,7 @@ export const authEmailCodeVerificationSchema = z.object({
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^\+?[1-9]\d{7,14}$/, "Enter a valid phone number.");
+  .regex(/^\+[1-9]\d{7,14}$/, "Enter a valid international phone number.");
 
 export const authPhoneCodeRequestSchema = z.object({
   phone: phoneSchema,
@@ -44,11 +44,10 @@ export const authPasswordSignInSchema = z.object({
   password: z.string().min(8).max(256),
 });
 
-export const authPasswordSignupSchema = z.object({
+export const authPasswordSignupSchema = z.strictObject({
   email: emailSchema,
   proof: z.string().min(32).max(128),
   password: z.string().min(8).max(256),
-  name: z.string().trim().max(200).optional(),
 });
 
 export const authGoogleCredentialSchema = z.object({
@@ -59,7 +58,7 @@ export const authUserSchema = z.object({
   id: z.uuid(),
   email: z.union([emailSchema, z.literal("")]),
   emailVerifiedAt: z.iso.datetime().nullable(),
-  name: z.string().max(200).nullable(),
+  name: z.string().max(302).nullable(),
   image: z.string().url().nullable(),
   createdAt: z.iso.datetime(),
 });
