@@ -68,6 +68,9 @@ const environmentSchema = z.object({
   GOOGLE_CLIENT_ID: optionalText,
   GOOGLE_CLIENT_SECRET: optionalText,
   GOOGLE_REDIRECT_URI: optionalText,
+  SMS_ACCOUNT_SID: optionalText,
+  SMS_AUTH_TOKEN: optionalText,
+  SMS_FROM: optionalText,
   SMTP_HOST: optionalText,
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_SECURE: z.enum(["true", "false"]).default("false"),
@@ -103,6 +106,23 @@ if (
 
 if (Boolean(environment.SMTP_USER) !== Boolean(environment.SMTP_PASSWORD)) {
   throw new Error("SMTP_USER and SMTP_PASSWORD must be configured together.");
+}
+
+if (
+  [
+    environment.SMS_ACCOUNT_SID,
+    environment.SMS_AUTH_TOKEN,
+    environment.SMS_FROM,
+  ].filter(Boolean).length > 0 &&
+  [
+    environment.SMS_ACCOUNT_SID,
+    environment.SMS_AUTH_TOKEN,
+    environment.SMS_FROM,
+  ].filter(Boolean).length !== 3
+) {
+  throw new Error(
+    "SMS_ACCOUNT_SID, SMS_AUTH_TOKEN, and SMS_FROM must all be configured together.",
+  );
 }
 
 const webOrigins = environment.WEB_ORIGINS.split(",")
@@ -169,6 +189,16 @@ export const config = {
   googleClientId: environment.GOOGLE_CLIENT_ID ?? null,
   googleClientSecret: environment.GOOGLE_CLIENT_SECRET ?? null,
   googleRedirectUri,
+  sms:
+    environment.SMS_ACCOUNT_SID &&
+    environment.SMS_AUTH_TOKEN &&
+    environment.SMS_FROM
+      ? {
+          accountSid: environment.SMS_ACCOUNT_SID,
+          authToken: environment.SMS_AUTH_TOKEN,
+          from: environment.SMS_FROM,
+        }
+      : null,
   nodeEnv: environment.NODE_ENV,
   oauthStateCookieName: `${appNameCookiePrefix}_google_oauth`,
   sessionCookieDomain: environment.SESSION_COOKIE_DOMAIN,

@@ -23,6 +23,7 @@ const testConfig: AppConfig = {
   sessionCookieSameSite: "lax",
   sessionCookieSecure: false,
   smtp: null,
+  sms: null,
   trustProxy: false,
   webOrigins: ["http://localhost:3000"],
 };
