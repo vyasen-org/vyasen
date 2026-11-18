@@ -43,8 +43,10 @@ export class GoogleProvider {
     private readonly clientId: string,
     clientSecret: string,
     redirectUri: string,
+    client?: OAuth2Client,
   ) {
-    this.client = new OAuth2Client(clientId, clientSecret, redirectUri);
+    this.client =
+      client ?? new OAuth2Client(clientId, clientSecret, redirectUri);
   }
 
   createAuthorizationUrl(
@@ -140,6 +142,55 @@ export class GoogleProvider {
       image: safeGoogleImage(payload.picture),
       nonce: payload.nonce,
     };
+  }
+}
+
+export class SmsProvider {
+  constructor(
+    private readonly config: AppConfig["sms"],
+    private readonly appName = "Vyasen",
+  ) {}
+
+  isAvailable(): boolean {
+    return Boolean(this.config);
+  }
+
+  async sendSignInCode(phone: string, code: string, expiresInMinutes: number) {
+    if (!this.config) {
+      throw new AppError(
+        503,
+        "sms_unavailable",
+        "Phone SMS sign-in is currently unavailable. Please try email instead.",
+      );
+    }
+
+    const credentials = Buffer.from(
+      `${this.config.accountSid}:${this.config.authToken}`,
+    ).toString("base64");
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${this.config.accountSid}/Messages.json`,
+      {
+        method: "POST",
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: phone,
+          From: this.config.from,
+          Body: `Your ${this.appName} sign-in code is ${code}. It expires in ${expiresInMinutes} minutes.`,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new AppError(
+        503,
+        "sms_delivery_unavailable",
+        "SMS delivery is temporarily unavailable.",
+      );
+    }
   }
 }
 

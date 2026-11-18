@@ -238,7 +238,7 @@ function requireAuthContext(
   return request.authContext;
 }
 
-function sessionMetadata(
+export function sessionMetadata(
   request: Pick<FastifyRequest, "ip" | "headers">,
 ): SessionMetadata {
   const userAgent =
@@ -270,7 +270,7 @@ type RequestData<T> = Pick<
 > &
   T;
 
-function setSessionCookie(
+export function setSessionCookie(
   reply: FastifyReply,
   config: AppConfig,
   token: string,

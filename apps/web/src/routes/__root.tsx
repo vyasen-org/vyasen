@@ -67,6 +67,7 @@ function RootLayout() {
     !autoOneTapDone;
   const googleNonceQuery = useGoogleNonceQuery(autoOneTapEnabled);
   const googleSignInMutation = useGoogleSignInMutation();
+  const submitOneTapCredential = googleSignInMutation.mutate;
   const authResult = searchParams.get("auth");
   const notice =
     authResult === "link-required"
@@ -138,16 +139,17 @@ function RootLayout() {
     }
 
     let active = true;
+    let submitted = false;
     const initializeGoogle = () => {
       if (!active || !window.google) return;
       autoOneTapAttempted.current = true;
-      setAutoOneTapDone(true);
       window.google.accounts.id.initialize({
         client_id: clientId,
         nonce,
         callback: (response) => {
-          if (!active) return;
-          googleSignInMutation.mutate(
+          if (!active || submitted) return;
+          submitted = true;
+          submitOneTapCredential(
             { credential: response.credential },
             {
               onError: () => {
@@ -194,11 +196,10 @@ function RootLayout() {
   }, [
     authSessionQuery.isSuccess,
     authenticated,
-    autoOneTapDone,
     currentLocation.hash,
     currentLocation.pathname,
     googleNonceQuery.data,
-    googleSignInMutation,
+    submitOneTapCredential,
     loginRequested,
     navigate,
   ]);

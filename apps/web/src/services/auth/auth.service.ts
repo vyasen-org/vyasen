@@ -17,7 +17,10 @@ import { apiRequest, apiRequestNoContent, ApiError } from "@/lib/api-client";
 export const authKeys = {
   all: ["auth"] as const,
   session: () => [...authKeys.all, "session"] as const,
-  sessions: () => [...authKeys.all, "sessions"] as const,
+  sessions: (userId?: string) =>
+    userId
+      ? ([...authKeys.all, "sessions", userId] as const)
+      : ([...authKeys.all, "sessions"] as const),
   googleNonce: () => [...authKeys.all, "google-nonce"] as const,
 };
 

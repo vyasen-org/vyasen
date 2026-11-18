@@ -1,5 +1,7 @@
-import { randomInt, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { Kysely } from "kysely";
+import { IdentityService } from "./identity.service";
+import { identityRepository } from "./identity.repository";
 
 import type { AuthSession, AuthUser } from "@vyasen/contracts";
 import type { Database } from "@vyasen/database";
@@ -14,10 +16,9 @@ import {
   EmailProvider,
   GoogleProvider,
   hashRateLimitKey,
-  hashesMatch,
   hashSessionToken,
-  hashVerificationCode,
   readOAuthState,
+  SmsProvider,
   type GoogleIdentity,
   type SignedOAuthState,
 } from "./auth.provider";
@@ -28,19 +29,16 @@ import {
   type UserRecord,
 } from "./auth.repository";
 
-const verificationCodeLifetimeMs = 10 * 60 * 1000;
-const emailCodeResendCooldownMs = 2 * 60 * 1000;
 const sessionLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 const oneTapNonceLifetimeMs = 5 * 60 * 1000;
 const oauthStateLifetimeMs = 10 * 60 * 1000;
-const genericCodeMessage =
-  "If this email can receive a sign-in code, one has been sent.";
 
 interface AuthServiceDependencies {
   db: Kysely<Database>;
   config: AppConfig;
   emailProvider: EmailProvider;
   googleProvider: GoogleProvider | null;
+  smsProvider?: SmsProvider | null;
 }
 
 interface AuthenticatedSession {
@@ -61,51 +59,11 @@ export class AuthService {
   }
 
   async requestEmailCode(emailInput: string, ipAddress: string) {
-    const email = normalizeEmail(emailInput);
-    await this.enforceRateLimit(
-      `email-code-ip:${ipAddress}`,
-      20,
-      60 * 60 * 1000,
+    return this.identityService().issue(
+      { destination: emailInput, channel: "email", purpose: "sign_in" },
+      ipAddress,
+      null,
     );
-    await this.enforceRateLimit(`email-code-email:${email}`, 5, 60 * 60 * 1000);
-    await this.enforceRateLimit(
-      `email-code-cooldown:${email}`,
-      1,
-      emailCodeResendCooldownMs,
-    );
-
-    const now = new Date();
-    const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
-    const expiresAt = new Date(now.getTime() + verificationCodeLifetimeMs);
-    const codeHash = hashVerificationCode(
-      code,
-      this.dependencies.config.authCodeHashSecret,
-    );
-
-    const challengeId = await this.dependencies.db
-      .transaction()
-      .execute(async (trx) => {
-        const repository = createAuthRepository(trx);
-        await repository.invalidateOpenCodes(trx, email, now);
-        return repository.insertEmailCode(trx, email, codeHash, expiresAt);
-      });
-
-    try {
-      await this.dependencies.emailProvider.sendSignInCode(email, code, 10);
-    } catch {
-      await this.repository.consumeEmailCodeById(challengeId, new Date());
-      throw new AppError(
-        503,
-        "email_delivery_unavailable",
-        "Email sign-in is temporarily unavailable. Please try again later.",
-      );
-    }
-
-    return {
-      challengeId,
-      expiresInSeconds: verificationCodeLifetimeMs / 1000,
-      message: genericCodeMessage,
-    };
   }
 
   async verifyEmailCode(
@@ -114,151 +72,28 @@ export class AuthService {
     code: string,
     metadata: SessionMetadata,
   ): Promise<AuthenticatedSession> {
-    const email = normalizeEmail(emailInput);
-    await this.enforceRateLimit(
-      `email-verify-ip:${metadata.ipAddress ?? "unknown"}`,
-      30,
-      15 * 60 * 1000,
+    const result = await this.identityService().verify(
+      {
+        destination: emailInput,
+        channel: "email",
+        purpose: "sign_in",
+        challengeId,
+        code,
+      },
+      metadata,
+      null,
     );
-    await this.enforceRateLimit(
-      `email-verify-email:${email}`,
-      20,
-      60 * 60 * 1000,
+    if (!("token" in result)) throw invalidCodeError();
+    return result;
+  }
+
+  private identityService() {
+    return new IdentityService(
+      this.dependencies.db,
+      this.dependencies.config,
+      this.dependencies.emailProvider,
+      this.dependencies.smsProvider ?? new SmsProvider(null),
     );
-
-    const now = new Date();
-    const sessionToken = createSessionToken();
-    const outcome = await this.dependencies.db
-      .transaction()
-      .execute(async (trx) => {
-        const repository = createAuthRepository(trx);
-        const verification = await repository.findEmailCodeForUpdate(
-          trx,
-          challengeId,
-          email,
-        );
-
-        if (
-          !verification ||
-          verification.consumedAt ||
-          verification.expiresAt <= now ||
-          verification.attemptCount >= 5
-        ) {
-          return { kind: "invalid" } as const;
-        }
-
-        const submittedHash = hashVerificationCode(
-          code,
-          this.dependencies.config.authCodeHashSecret,
-        );
-        if (!hashesMatch(verification.codeHash, submittedHash)) {
-          const nextAttemptCount = verification.attemptCount + 1;
-          await repository.updateEmailCodeAttempt(
-            trx,
-            verification.id,
-            nextAttemptCount,
-            nextAttemptCount >= 5 ? now : null,
-          );
-          return { kind: "invalid" } as const;
-        }
-
-        await repository.consumeEmailCode(trx, verification.id, now);
-
-        let user = await repository.findUserByEmail(trx, email);
-        if (!user) {
-          const created = await repository.insertUser(trx, {
-            email,
-            emailVerifiedAt: now,
-            name: null,
-            image: null,
-          });
-          user = created
-            ? await repository.findUserById(trx, created.id)
-            : await repository.findUserByEmail(trx, email);
-        }
-
-        if (!user) {
-          throw new Error("A verified email user could not be loaded.");
-        }
-        if (user.status !== "active") {
-          return { kind: "account_disabled" } as const;
-        }
-
-        const existingIdentity = await repository.findIdentity(
-          trx,
-          "email",
-          email,
-        );
-        if (existingIdentity && existingIdentity.user_id !== user.id) {
-          return { kind: "identity_conflict" } as const;
-        }
-
-        if (!existingIdentity) {
-          const linkedEmail = await repository.findUserProviderIdentity(
-            trx,
-            user.id,
-            "email",
-          );
-          if (linkedEmail && linkedEmail.provider_subject !== email) {
-            return { kind: "identity_conflict" } as const;
-          }
-          const insertedIdentity = await repository.insertIdentity(
-            trx,
-            user.id,
-            "email",
-            email,
-          );
-          if (!insertedIdentity) {
-            const concurrentIdentity = await repository.findIdentity(
-              trx,
-              "email",
-              email,
-            );
-            if (concurrentIdentity?.user_id !== user.id) {
-              return { kind: "identity_conflict" } as const;
-            }
-          }
-        }
-
-        await repository.markEmailVerified(trx, user.id, now);
-        await repository.updateLoginTime(trx, user.id, now);
-        const sessionId = await repository.createSession(trx, {
-          userId: user.id,
-          tokenHash: hashSessionToken(sessionToken),
-          metadata,
-          now,
-          expiresAt: new Date(now.getTime() + sessionLifetimeMs),
-        });
-        const refreshedUser = await repository.findUserById(trx, user.id);
-
-        if (!refreshedUser) {
-          throw new Error("A signed-in user could not be loaded.");
-        }
-
-        return {
-          kind: "success",
-          sessionId,
-          user: toAuthUser(refreshedUser),
-        } as const;
-      });
-
-    if (outcome.kind === "invalid") throw invalidCodeError();
-    if (outcome.kind === "account_disabled") {
-      throw new AppError(403, "account_disabled", "This account is disabled.");
-    }
-    if (outcome.kind === "identity_conflict") {
-      throw new AppError(
-        409,
-        "identity_conflict",
-        "This email is already linked to another account.",
-      );
-    }
-
-    return {
-      user: outcome.user,
-      sessionId: outcome.sessionId,
-      token: sessionToken,
-    };
   }
 
   async beginGoogleOAuth(returnTo: string) {
@@ -277,6 +112,12 @@ export class AuthService {
       oauthState,
       this.dependencies.config.authStateSecret,
     );
+    await this.repository.insertGoogleNonce(
+      this.dependencies.db,
+      hashSessionToken(oauthState.nonce),
+      new Date(),
+      new Date(oauthState.expiresAt),
+    );
 
     return {
       authorizationUrl: provider.createAuthorizationUrl(
@@ -288,7 +129,35 @@ export class AuthService {
     };
   }
 
-  async completeGoogleOAuth(
+  private async recordGoogleFailure<T>(
+    userId: string | null,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      await this.repository.insertSecurityEvent(
+        this.dependencies.db,
+        userId,
+        "google_auth_failed",
+        null,
+      );
+      throw error;
+    }
+  }
+
+  completeGoogleOAuth(
+    code: string,
+    state: string,
+    stateCookie: string | undefined,
+    metadata: SessionMetadata,
+  ) {
+    return this.recordGoogleFailure(null, () =>
+      this.completeGoogleOAuthVerified(code, state, stateCookie, metadata),
+    );
+  }
+
+  private async completeGoogleOAuthVerified(
     code: string,
     state: string,
     stateCookie: string | undefined,
@@ -316,6 +185,19 @@ export class AuthService {
       );
     }
 
+    if (
+      !(await this.repository.consumeGoogleNonce(
+        this.dependencies.db,
+        hashSessionToken(oauthState.nonce),
+        new Date(),
+      ))
+    ) {
+      throw new AppError(
+        400,
+        "google_state_invalid",
+        "Google sign-in expired. Please try again.",
+      );
+    }
     const identity = await provider.exchangeCode(
       code,
       oauthState.codeVerifier,
@@ -338,6 +220,7 @@ export class AuthService {
     const nonce = createOAuthNonce();
     const now = new Date();
     await this.repository.insertGoogleNonce(
+      this.dependencies.db,
       hashSessionToken(nonce),
       now,
       new Date(now.getTime() + oneTapNonceLifetimeMs),
@@ -349,7 +232,16 @@ export class AuthService {
     };
   }
 
-  async signInWithOneTap(
+  signInWithOneTap(
+    credential: string,
+    metadata: SessionMetadata,
+  ): Promise<AuthenticatedSession> {
+    return this.recordGoogleFailure(null, () =>
+      this.signInWithOneTapVerified(credential, metadata),
+    );
+  }
+
+  private async signInWithOneTapVerified(
     credential: string,
     metadata: SessionMetadata,
   ): Promise<AuthenticatedSession> {
@@ -379,7 +271,17 @@ export class AuthService {
     };
   }
 
-  async linkGoogleIdentity(
+  linkGoogleIdentity(
+    userId: string,
+    credential: string,
+    ipAddress: string,
+  ): Promise<void> {
+    return this.recordGoogleFailure(userId, () =>
+      this.linkGoogleIdentityVerified(userId, credential, ipAddress),
+    );
+  }
+
+  private async linkGoogleIdentityVerified(
     userId: string,
     credential: string,
     ipAddress: string,
@@ -427,13 +329,6 @@ export class AuthService {
             : ("identity_in_use" as const);
         }
 
-        const userGoogleIdentity = await repository.findUserProviderIdentity(
-          trx,
-          userId,
-          "google",
-        );
-        if (userGoogleIdentity) return "google_already_linked" as const;
-
         const inserted = await repository.insertIdentity(
           trx,
           userId,
@@ -451,6 +346,7 @@ export class AuthService {
             : ("identity_in_use" as const);
         }
 
+        await identityRepository(trx).audit(userId, "identity_linked");
         return "linked" as const;
       });
 
@@ -464,7 +360,7 @@ export class AuthService {
     if (result === "account_unavailable") {
       throw new AppError(401, "unauthorized", "Sign in to link an account.");
     }
-    if (result === "identity_in_use" || result === "google_already_linked") {
+    if (result === "identity_in_use") {
       throw new AppError(
         409,
         "google_identity_conflict",
@@ -477,6 +373,7 @@ export class AuthService {
     if (!token) return null;
     const now = new Date();
     const session = await this.repository.findActiveSession(
+      this.dependencies.db,
       hashSessionToken(token),
       now,
     );
@@ -487,12 +384,20 @@ export class AuthService {
       session.user_id,
     );
     if (!user || user.status !== "active") {
-      await this.repository.revokeSessionByToken(hashSessionToken(token), now);
+      await this.repository.revokeSessionByToken(
+        this.dependencies.db,
+        hashSessionToken(token),
+        now,
+      );
       return null;
     }
 
     if (now.getTime() - session.last_active_at.getTime() >= 5 * 60 * 1000) {
-      await this.repository.updateSessionActivity(session.id, now);
+      await this.repository.updateSessionActivity(
+        this.dependencies.db,
+        session.id,
+        now,
+      );
     }
     return { user: toAuthUser(user), sessionId: session.id };
   }
@@ -501,7 +406,11 @@ export class AuthService {
     userId: string,
     currentSessionId: string,
   ): Promise<AuthSession[]> {
-    const sessions = await this.repository.listSessions(userId, new Date());
+    const sessions = await this.repository.listSessions(
+      this.dependencies.db,
+      userId,
+      new Date(),
+    );
     return sessions.map((session) => ({
       ...session,
       current: session.id === currentSessionId,
@@ -509,24 +418,37 @@ export class AuthService {
   }
 
   async revokeSession(userId: string, sessionId: string) {
-    await this.repository.revokeSession(userId, sessionId, new Date());
+    await this.dependencies.db
+      .transaction()
+      .execute((trx) =>
+        this.repository.revokeSession(trx, userId, sessionId, new Date()),
+      );
   }
 
   async revokeAllSessions(userId: string) {
-    await this.repository.revokeAllSessions(userId, new Date());
+    await this.dependencies.db
+      .transaction()
+      .execute((trx) =>
+        this.repository.revokeAllSessions(trx, userId, new Date()),
+      );
   }
 
   async logout(token: string | undefined) {
     if (token) {
-      await this.repository.revokeSessionByToken(
-        hashSessionToken(token),
-        new Date(),
-      );
+      await this.dependencies.db
+        .transaction()
+        .execute((trx) =>
+          this.repository.revokeSessionByToken(
+            trx,
+            hashSessionToken(token),
+            new Date(),
+          ),
+        );
     }
   }
 
   async cleanupExpiredData() {
-    await this.repository.cleanupExpiredData(new Date());
+    await this.repository.cleanupExpiredData(this.dependencies.db, new Date());
   }
 
   googleOAuthReturnTo(stateCookie: string | undefined): string {
@@ -622,12 +544,31 @@ export class AuthService {
               );
             } else {
               user = await repository.findUserById(trx, insertedUser.id);
+              await repository.insertSecurityEvent(
+                trx,
+                insertedUser.id,
+                "account_created",
+                insertedIdentity.id,
+              );
             }
           }
         }
 
         if (!user)
           throw new Error("A Google-authenticated user could not be loaded.");
+        user = await repository.findUserByIdForUpdate(trx, user.id);
+        if (!user) return { kind: "account_disabled" } as const;
+        const authorizedIdentity = await repository.findIdentity(
+          trx,
+          "google",
+          identity.subject,
+        );
+        if (
+          !authorizedIdentity ||
+          authorizedIdentity.user_id !== user.id ||
+          (linkedIdentity && authorizedIdentity.id !== linkedIdentity.id)
+        )
+          return { kind: "invalid_nonce" } as const;
         if (user.status !== "active")
           return { kind: "account_disabled" } as const;
 
@@ -739,8 +680,4 @@ export class AuthService {
       return "/";
     }
   }
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
 }
