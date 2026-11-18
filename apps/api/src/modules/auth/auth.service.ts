@@ -129,7 +129,35 @@ export class AuthService {
     };
   }
 
-  async completeGoogleOAuth(
+  private async recordGoogleFailure<T>(
+    userId: string | null,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      await this.repository.insertSecurityEvent(
+        this.dependencies.db,
+        userId,
+        "google_auth_failed",
+        null,
+      );
+      throw error;
+    }
+  }
+
+  completeGoogleOAuth(
+    code: string,
+    state: string,
+    stateCookie: string | undefined,
+    metadata: SessionMetadata,
+  ) {
+    return this.recordGoogleFailure(null, () =>
+      this.completeGoogleOAuthVerified(code, state, stateCookie, metadata),
+    );
+  }
+
+  private async completeGoogleOAuthVerified(
     code: string,
     state: string,
     stateCookie: string | undefined,
@@ -204,7 +232,16 @@ export class AuthService {
     };
   }
 
-  async signInWithOneTap(
+  signInWithOneTap(
+    credential: string,
+    metadata: SessionMetadata,
+  ): Promise<AuthenticatedSession> {
+    return this.recordGoogleFailure(null, () =>
+      this.signInWithOneTapVerified(credential, metadata),
+    );
+  }
+
+  private async signInWithOneTapVerified(
     credential: string,
     metadata: SessionMetadata,
   ): Promise<AuthenticatedSession> {
@@ -234,7 +271,17 @@ export class AuthService {
     };
   }
 
-  async linkGoogleIdentity(
+  linkGoogleIdentity(
+    userId: string,
+    credential: string,
+    ipAddress: string,
+  ): Promise<void> {
+    return this.recordGoogleFailure(userId, () =>
+      this.linkGoogleIdentityVerified(userId, credential, ipAddress),
+    );
+  }
+
+  private async linkGoogleIdentityVerified(
     userId: string,
     credential: string,
     ipAddress: string,
@@ -509,6 +556,19 @@ export class AuthService {
 
         if (!user)
           throw new Error("A Google-authenticated user could not be loaded.");
+        user = await repository.findUserByIdForUpdate(trx, user.id);
+        if (!user) return { kind: "account_disabled" } as const;
+        const authorizedIdentity = await repository.findIdentity(
+          trx,
+          "google",
+          identity.subject,
+        );
+        if (
+          !authorizedIdentity ||
+          authorizedIdentity.user_id !== user.id ||
+          (linkedIdentity && authorizedIdentity.id !== linkedIdentity.id)
+        )
+          return { kind: "invalid_nonce" } as const;
         if (user.status !== "active")
           return { kind: "account_disabled" } as const;
 

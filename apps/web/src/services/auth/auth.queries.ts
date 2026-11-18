@@ -18,6 +18,9 @@ export function useAuthSessionQuery() {
   });
   useEffect(() => {
     if (session.isSuccess && !session.data) {
+      void client.cancelQueries({ queryKey: authKeys.sessions() }).then(() => {
+        client.removeQueries({ queryKey: authKeys.sessions() });
+      });
       void client.cancelQueries({ queryKey: identityKeys.all }).then(() => {
         client.removeQueries({ queryKey: identityKeys.all });
       });
@@ -27,10 +30,12 @@ export function useAuthSessionQuery() {
 }
 
 export function useAuthSessionsQuery(enabled = true) {
+  const session = useAuthSessionQuery();
+  const userId = session.data?.user.id;
   return useQuery({
-    queryKey: authKeys.sessions(),
+    queryKey: authKeys.sessions(userId),
     queryFn: ({ signal }) => getAuthSessions(signal),
-    enabled,
+    enabled: enabled && Boolean(userId),
   });
 }
 

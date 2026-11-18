@@ -6,6 +6,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { promisify } from "node:util";
+import { isSupportedPasswordHash } from "./password-format";
 import { z } from "zod";
 import type { Kysely } from "kysely";
 import type { Database } from "@vyasen/database";
@@ -50,6 +51,7 @@ export async function encodePassword(password: string) {
   return `$argon2id$v=19$m=65536,t=3,p=1$${salt.toString("base64")}$${hash.toString("base64")}`;
 }
 export async function checkPassword(encoded: string, password: string) {
+  if (!isSupportedPasswordHash(encoded)) return false;
   const parts = encoded.split("$");
   if (
     parts.length !== 6 ||
@@ -432,7 +434,9 @@ export class IdentityService {
         throw new AppError(
           409,
           "operation_unavailable",
-          "Operation unavailable or last sign-in method.",
+          action === "unlink"
+            ? "This method cannot be removed. Add and verify another available sign-in method first."
+            : "This contact is unavailable. Refresh your account and try again.",
         );
       await repo.audit(
         id,

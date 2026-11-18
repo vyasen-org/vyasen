@@ -1,5 +1,6 @@
 import { sql, type Kysely, type Transaction } from "kysely";
 import type { Database } from "@vyasen/database";
+import { isSupportedPasswordHash } from "./password-format";
 
 export type IdentityExecutor = Kysely<Database> | Transaction<Database>;
 export function identityRepository(db: IdentityExecutor) {
@@ -259,7 +260,10 @@ export function identityRepository(db: IdentityExecutor) {
           (method) =>
             method.id !== id &&
             ((method.provider === "email" &&
-              (Boolean(credential) || available.emailOtp)) ||
+              (Boolean(
+                credential && isSupportedPasswordHash(credential.password_hash),
+              ) ||
+                available.emailOtp)) ||
               (method.provider === "phone" && available.sms) ||
               (method.provider === "google" && available.google)),
         )

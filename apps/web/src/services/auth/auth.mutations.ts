@@ -22,6 +22,8 @@ export async function adoptAuthSession(
   session: AuthSessionResponse,
 ) {
   await queryClient.cancelQueries({ queryKey: identityKeys.all });
+  await queryClient.cancelQueries({ queryKey: authKeys.sessions() });
+  queryClient.removeQueries({ queryKey: authKeys.sessions() });
   await queryClient.cancelQueries({ queryKey: authKeys.session() });
   queryClient.removeQueries({ queryKey: identityKeys.all });
   queryClient.setQueryData(authKeys.session(), session);
