@@ -73,7 +73,12 @@ jobs:
 
       # Node built-in test runner for the auth module unit tests.
       - name: Test
-        run: pnpm test
+        run: |
+          pnpm test | tee /tmp/vyasen-tests.log
+          if grep -Eq '(^|[[:space:]])(skipped [1-9]|# SKIP)' /tmp/vyasen-tests.log; then
+            echo "Mandatory authentication tests were skipped."
+            exit 1
+          fi
 
       - name: Install browser for identity journeys
         run: pnpm --filter @vyasen/web exec playwright install --with-deps chrome

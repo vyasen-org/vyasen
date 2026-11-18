@@ -371,29 +371,32 @@ export class AuthService {
   }
 
   async revokeSession(userId: string, sessionId: string) {
-    await this.repository.revokeSession(
-      this.dependencies.db,
-      userId,
-      sessionId,
-      new Date(),
-    );
+    await this.dependencies.db
+      .transaction()
+      .execute((trx) =>
+        this.repository.revokeSession(trx, userId, sessionId, new Date()),
+      );
   }
 
   async revokeAllSessions(userId: string) {
-    await this.repository.revokeAllSessions(
-      this.dependencies.db,
-      userId,
-      new Date(),
-    );
+    await this.dependencies.db
+      .transaction()
+      .execute((trx) =>
+        this.repository.revokeAllSessions(trx, userId, new Date()),
+      );
   }
 
   async logout(token: string | undefined) {
     if (token) {
-      await this.repository.revokeSessionByToken(
-        this.dependencies.db,
-        hashSessionToken(token),
-        new Date(),
-      );
+      await this.dependencies.db
+        .transaction()
+        .execute((trx) =>
+          this.repository.revokeSessionByToken(
+            trx,
+            hashSessionToken(token),
+            new Date(),
+          ),
+        );
     }
   }
 
@@ -494,6 +497,12 @@ export class AuthService {
               );
             } else {
               user = await repository.findUserById(trx, insertedUser.id);
+              await repository.insertSecurityEvent(
+                trx,
+                insertedUser.id,
+                "account_created",
+                insertedIdentity.id,
+              );
             }
           }
         }

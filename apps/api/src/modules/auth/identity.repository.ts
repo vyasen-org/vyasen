@@ -114,6 +114,22 @@ export function identityRepository(db: IdentityExecutor) {
         .forUpdate()
         .executeTakeFirst();
     },
+    challengeUser(id: string) {
+      return db
+        .selectFrom("auth_challenges")
+        .select("user_id")
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+    proof(secretHash: string) {
+      return db
+        .selectFrom("auth_challenges")
+        .select("id")
+        .where("purpose", "=", "password_setup")
+        .where("secret_hash", "=", secretHash)
+        .forUpdate()
+        .executeTakeFirst();
+    },
     async issue(values: {
       id: string;
       user_id: string | null;
@@ -195,13 +211,59 @@ export function identityRepository(db: IdentityExecutor) {
         .execute();
       return true;
     },
-    async unlink(userId: string, id: string) {
+    async removeContact(userId: string, id: string) {
+      const contact = await db
+        .selectFrom("user_contacts")
+        .select(["id", "type", "is_primary"])
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .executeTakeFirst();
+      if (!contact) return false;
+      await db
+        .deleteFrom("user_contacts")
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .execute();
+      if (contact.is_primary) {
+        const replacement = await db
+          .selectFrom("user_contacts")
+          .select("id")
+          .where("user_id", "=", userId)
+          .where("type", "=", contact.type)
+          .orderBy("created_at", "asc")
+          .executeTakeFirst();
+        if (replacement)
+          await db
+            .updateTable("user_contacts")
+            .set({ is_primary: true, updated_at: new Date() })
+            .where("id", "=", replacement.id)
+            .execute();
+      }
+      return true;
+    },
+    async unlink(
+      userId: string,
+      id: string,
+      available: { emailOtp: boolean; sms: boolean; google: boolean },
+    ) {
       const methods = await db
         .selectFrom("auth_identities")
-        .select("id")
+        .select(["id", "provider"])
         .where("user_id", "=", userId)
         .execute();
       if (methods.length <= 1 || !methods.some((m) => m.id === id))
+        return false;
+      const credential = await this.credential(userId);
+      if (
+        !methods.some(
+          (method) =>
+            method.id !== id &&
+            ((method.provider === "email" &&
+              (Boolean(credential) || available.emailOtp)) ||
+              (method.provider === "phone" && available.sms) ||
+              (method.provider === "google" && available.google)),
+        )
+      )
         return false;
       await db
         .deleteFrom("auth_identities")

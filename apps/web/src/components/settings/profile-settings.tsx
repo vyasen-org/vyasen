@@ -83,7 +83,7 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-5 py-6">
-      <IdentitySettings />
+      <IdentitySettings key={user.id} userId={user.id} />
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.5fr)]">
         <section className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="mb-5">

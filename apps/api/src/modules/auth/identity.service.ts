@@ -175,6 +175,8 @@ export class IdentityService {
     await this.limit("verify-ip:" + metadata.ipAddress, 30, 900000);
     const result = await this.db.transaction().execute(async (trx) => {
       const repo = identityRepository(trx);
+      const challengeUser = await repo.challengeUser(input.challengeId);
+      if (challengeUser?.user_id) await repo.lockUser(challengeUser.user_id);
       const challenge = await repo.challenge(input.challengeId);
       if (
         !challenge ||
@@ -256,7 +258,12 @@ export class IdentityService {
             "contact_unavailable",
             "Contact unavailable.",
           );
-        await repo.audit(userId, input.purpose);
+        await repo.audit(
+          userId,
+          input.purpose === "account_link"
+            ? "identity_linked"
+            : "contact_verified",
+        );
         return { success: true as const };
       }
       let id = identity?.user_id;
@@ -270,10 +277,18 @@ export class IdentityService {
             "Contact unavailable.",
           );
         await repo.audit(id, "account_created");
+      } else {
+        await repo.lockUser(id);
+        const current = await repo.identity(provider, destination);
+        if (current?.id !== identity?.id || current?.user_id !== id)
+          return null;
       }
       return this.session(trx, id, metadata);
     });
-    if (!result) throw invalidCodeError();
+    if (!result) {
+      await identityRepository(this.db).audit(null, "otp_verification_failed");
+      throw invalidCodeError();
+    }
     return result;
   }
   async signup(
@@ -289,13 +304,7 @@ export class IdentityService {
       const repo = identityRepository(trx);
       await repo.serialize("identity:email:" + destination);
       // Proofs are random 256-bit values; stored hashes are safe for indexed lookup.
-      const record = await trx
-        .selectFrom("auth_challenges")
-        .select("id")
-        .where("purpose", "=", "password_setup")
-        .where("secret_hash", "=", hashSessionToken(proof))
-        .forUpdate()
-        .executeTakeFirst();
+      const record = await repo.proof(hashSessionToken(proof));
       const challenge = record && (await repo.challenge(record.id));
       if (
         !challenge ||
@@ -343,9 +352,22 @@ export class IdentityService {
         "Email or password is incorrect.",
       );
     }
-    return this.db
-      .transaction()
-      .execute((trx) => this.session(trx, identity.user_id, metadata));
+    return this.db.transaction().execute(async (trx) => {
+      const locked = await identityRepository(trx).lockUser(identity.user_id);
+      if (locked.status !== "active")
+        throw new AppError(403, "account_disabled", "Account unavailable.");
+      const current = await identityRepository(trx).identity(
+        "email",
+        email.trim().toLowerCase(),
+      );
+      if (current?.id !== identity.id || current.user_id !== identity.user_id)
+        throw new AppError(
+          401,
+          "invalid_credentials",
+          "Email or password is incorrect.",
+        );
+      return this.session(trx, identity.user_id, metadata);
+    });
   }
   private async session(
     trx: IdentityExecutor,
@@ -378,17 +400,34 @@ export class IdentityService {
     id: string,
     input: z.infer<typeof personalProfileSchema>,
   ) {
-    await identityRepository(this.db).profile(id, input);
+    await this.db.transaction().execute(async (trx) => {
+      const repo = identityRepository(trx);
+      await repo.lockUser(id);
+      await repo.profile(id, input);
+      await repo.audit(id, "profile_updated");
+    });
     return this.account(id);
   }
-  async changeMethod(id: string, item: string, action: "primary" | "unlink") {
+  async changeMethod(
+    id: string,
+    item: string,
+    action: "primary" | "unlink" | "remove_contact",
+  ) {
     return this.db.transaction().execute(async (trx) => {
       const repo = identityRepository(trx);
       await repo.lockUser(id);
       if (
         !(action === "primary"
           ? await repo.primary(id, item)
-          : await repo.unlink(id, item))
+          : action === "remove_contact"
+            ? await repo.removeContact(id, item)
+            : await repo.unlink(id, item, {
+                emailOtp: Boolean(this.config.smtp),
+                sms: this.sms.isAvailable(),
+                google: Boolean(
+                  this.config.googleClientId && this.config.googleClientSecret,
+                ),
+              }))
       )
         throw new AppError(
           409,
@@ -397,7 +436,11 @@ export class IdentityService {
         );
       await repo.audit(
         id,
-        action === "primary" ? "contact_primary_changed" : "identity_unlinked",
+        action === "primary"
+          ? "contact_primary_changed"
+          : action === "remove_contact"
+            ? "contact_removed"
+            : "identity_unlinked",
       );
       return { success: true as const };
     });

@@ -11,6 +11,7 @@ import {
   EmailProvider,
   SmsProvider,
   GoogleProvider,
+  hashRateLimitKey,
   type GoogleIdentity,
 } from "./auth.provider";
 import {
@@ -19,6 +20,7 @@ import {
   checkPassword,
 } from "./identity.service";
 import { AuthService } from "./auth.service";
+import { identityRepository } from "./identity.repository";
 import { buildApp } from "../../app";
 import type { SessionMetadata } from "./auth.repository";
 
@@ -139,6 +141,15 @@ test(
       const signupProof = proof.proof;
       assert.equal(typeof signupProof, "string");
       if (!signupProof) throw new Error("Missing proof");
+      await assert.rejects(
+        service.signup(
+          "other@example.test",
+          signupProof,
+          "secure password",
+          metadata,
+        ),
+        { code: "invalid_verification_code" },
+      );
       const attempts = await Promise.allSettled([
         service.signup(
           input.destination,
@@ -154,6 +165,49 @@ test(
         ),
       ]);
       assert.equal(attempts.filter((a) => a.status === "fulfilled").length, 1);
+      const expiringSignup = {
+        ...input,
+        destination: "proof-expiry@example.test",
+      };
+      const expiryChallenge = await service.issue(
+        expiringSignup,
+        "127.0.0.32",
+        null,
+      );
+      const expiryProof = await service.verify(
+        {
+          ...expiringSignup,
+          challengeId: expiryChallenge.challengeId,
+          code: email.code,
+        },
+        metadata,
+        null,
+      );
+      assert.ok("proof" in expiryProof);
+      if (!("proof" in expiryProof)) throw new Error("Missing expiry proof");
+      if (!expiryProof.proof) throw new Error("Missing expiry proof value");
+      await db
+        .updateTable("auth_challenges")
+        .set({ expires_at: new Date(0) })
+        .where("purpose", "=", "password_setup")
+        .where(
+          "destination_hash",
+          "=",
+          hashRateLimitKey(
+            expiringSignup.destination,
+            config.authCodeHashSecret,
+          ),
+        )
+        .execute();
+      await assert.rejects(
+        service.signup(
+          expiringSignup.destination,
+          expiryProof.proof,
+          "secure password",
+          metadata,
+        ),
+        { code: "invalid_verification_code" },
+      );
       const signed = await service.password(
         input.destination,
         "secure password",
@@ -218,11 +272,104 @@ test(
         ).length,
         1,
       );
+      const currentPrimary = (
+        await service.account(signed.user.id)
+      ).contacts.find((c) => c.is_primary && c.type === "email")!;
+      await service.changeMethod(
+        signed.user.id,
+        currentPrimary.id,
+        "remove_contact",
+      );
+      const afterRemoval = await service.account(signed.user.id);
+      assert.equal(
+        afterRemoval.contacts.some((c) => c.id === currentPrimary.id),
+        false,
+      );
+      assert.equal(
+        afterRemoval.contacts.filter((c) => c.is_primary && c.type === "email")
+          .length,
+        1,
+      );
+      assert.ok(
+        afterRemoval.identities.some(
+          (i) => i.provider_subject === input.destination,
+        ),
+      );
+      await assert.rejects(
+        service.changeMethod(
+          randomUUID(),
+          afterRemoval.contacts[0].id,
+          "remove_contact",
+        ),
+      );
+      await db.transaction().execute(async (trx) => {
+        const repo = identityRepository(trx);
+        await repo.lockUser(signed.user.id);
+        await repo.addIdentity(signed.user.id, "phone", "+14155552672");
+        const methods = (await repo.account(signed.user.id)).identities;
+        const emailMethod = methods.find(
+          (method) => method.provider === "email",
+        )!;
+        const phoneMethod = methods.find(
+          (method) => method.provider === "phone",
+        )!;
+        assert.equal(
+          await repo.unlink(signed.user.id, emailMethod.id, {
+            emailOtp: false,
+            sms: false,
+            google: false,
+          }),
+          false,
+          "An unavailable SMS identity cannot preserve access",
+        );
+        assert.equal(
+          await repo.unlink(signed.user.id, phoneMethod.id, {
+            emailOtp: false,
+            sms: false,
+            google: false,
+          }),
+          true,
+          "The password-backed email identity remains usable",
+        );
+      });
       const phone = {
         destination: "+14155552671",
         channel: "sms" as const,
         purpose: "sign_in" as const,
       };
+      const failingEmail = new (class extends Email {
+        override async sendSignInCode() {
+          throw new Error("controlled delivery failure");
+        }
+      })();
+      await assert.rejects(
+        new IdentityService(db, config, failingEmail, sms).issue(
+          {
+            channel: "email",
+            purpose: "sign_in",
+            destination: "delivery-failure@example.test",
+          },
+          "127.0.0.34",
+          null,
+        ),
+        { code: "delivery_unavailable" },
+      );
+      const failedDelivery = await db
+        .selectFrom("auth_challenges")
+        .select("consumed_at")
+        .where(
+          "destination_hash",
+          "=",
+          hashRateLimitKey(
+            "delivery-failure@example.test",
+            config.authCodeHashSecret,
+          ),
+        )
+        .executeTakeFirstOrThrow();
+      assert.ok(
+        failedDelivery.consumed_at,
+        "Failed delivery must invalidate its challenge",
+      );
       const phoneChallenge = await service.issue(phone, "127.0.0.3", null);
       const phoneSession = await service.verify(
         { ...phone, challengeId: phoneChallenge.challengeId, code: sms.code },
@@ -230,12 +377,33 @@ test(
         null,
       );
       assert.ok("user" in phoneSession);
+      if (!("user" in phoneSession)) throw new Error("Missing phone session");
+      await assert.rejects(
+        service.changeMethod(
+          phoneSession.user.id,
+          afterRemoval.contacts[0].id,
+          "remove_contact",
+        ),
+        { code: "operation_unavailable" },
+      );
       await assert.rejects(
         service.verify(
           { ...phone, challengeId: phoneChallenge.challengeId, code: sms.code },
           metadata,
           null,
         ),
+      );
+      await db.deleteFrom("auth_rate_limits").execute();
+      const returningPhone = await service.issue(phone, "127.0.0.33", null);
+      const returningSession = await service.verify(
+        { ...phone, challengeId: returningPhone.challengeId, code: sms.code },
+        metadata,
+        null,
+      );
+      assert.ok(
+        "user" in returningSession &&
+          "user" in phoneSession &&
+          returningSession.user.id === phoneSession.user.id,
       );
       const disabled = new IdentityService(
         db,
@@ -306,8 +474,36 @@ test(
         ),
       );
       assert.ok(await auth.authenticateSession(signed.token));
+      const eventCountBeforeLogout = await db
+        .selectFrom("auth_security_events")
+        .select("id")
+        .execute();
       await auth.logout(signed.token);
       assert.equal(await auth.authenticateSession(signed.token), null);
+      const eventCountAfterLogout = await db
+        .selectFrom("auth_security_events")
+        .select("id")
+        .execute();
+      assert.equal(
+        eventCountAfterLogout.length,
+        eventCountBeforeLogout.length + 1,
+      );
+      const auditRows = await db
+        .selectFrom("auth_security_events")
+        .select(["event_type", "metadata"])
+        .execute();
+      assert.ok(
+        auditRows.some((event) => event.event_type === "session_revoked"),
+      );
+      assert.ok(
+        auditRows.some((event) => event.event_type === "contact_removed"),
+      );
+      assert.ok(
+        auditRows.every(
+          (event) =>
+            !JSON.stringify(event.metadata).includes("secure password"),
+        ),
+      );
       await service.updateProfile(signed.user.id, {
         first_name: "Asha",
         middle_name: null,
@@ -360,10 +556,103 @@ test(
         ).user.id,
         signed.user.id,
       );
-      await service.changeMethod(signed.user.id, linked.id, "unlink");
+      let racingLogin: ReturnType<typeof service.password> | undefined;
+      await db.transaction().execute(async (trx) => {
+        const repo = identityRepository(trx);
+        await repo.lockUser(signed.user.id);
+        racingLogin = service.password(
+          linkInput.destination,
+          "secure password",
+          { ...metadata, ipAddress: "127.0.0.31" },
+        );
+        racingLogin.catch(() => undefined);
+        let waiting = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await sql`select pg_stat_clear_snapshot()`.execute(trx);
+          const state = await sql<{
+            count: number;
+          }>`select count(*)::int as count from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and query like '%users%'`.execute(
+            trx,
+          );
+          if (state.rows[0].count > 0) {
+            waiting = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        assert.ok(waiting, "Password login must be waiting for the user lock");
+        assert.equal(
+          await repo.unlink(signed.user.id, linked.id, {
+            emailOtp: true,
+            sms: false,
+            google: false,
+          }),
+          true,
+        );
+      });
+      await assert.rejects(racingLogin!, { code: "invalid_credentials" });
       await assert.rejects(
         service.password(linkInput.destination, "secure password", metadata),
       );
+      const otpRace = {
+        destination: "otp-race@example.test",
+        channel: "email" as const,
+        purpose: "sign_in" as const,
+      };
+      await identityRepository(db).addIdentity(
+        signed.user.id,
+        "email",
+        otpRace.destination,
+      );
+      const otpRaceIdentity = (
+        await service.account(signed.user.id)
+      ).identities.find(
+        (method) => method.provider_subject === otpRace.destination,
+      )!;
+      const otpRaceChallenge = await service.issue(otpRace, "127.0.0.35", null);
+      const otpRaceCode = email.code;
+      let racingOtp: ReturnType<typeof service.verify> | undefined;
+      await db.transaction().execute(async (trx) => {
+        const repo = identityRepository(trx);
+        await repo.lockUser(signed.user.id);
+        racingOtp = service.verify(
+          {
+            ...otpRace,
+            challengeId: otpRaceChallenge.challengeId,
+            code: otpRaceCode,
+          },
+          { ...metadata, ipAddress: "127.0.0.36" },
+          null,
+        );
+        racingOtp.catch(() => undefined);
+        let waiting = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await sql`select pg_stat_clear_snapshot()`.execute(trx);
+          const state = await sql<{
+            count: number;
+          }>`select count(*)::int as count from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and query like '%users%'`.execute(
+            trx,
+          );
+          if (state.rows[0].count > 0) {
+            waiting = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        assert.ok(
+          waiting,
+          "OTP verification must be waiting for the user lock",
+        );
+        assert.equal(
+          await repo.unlink(signed.user.id, otpRaceIdentity.id, {
+            emailOtp: true,
+            sms: false,
+            google: false,
+          }),
+          true,
+        );
+      });
+      await assert.rejects(racingOtp!, { code: "invalid_verification_code" });
       const expiringInput = {
         destination: "expired@example.test",
         channel: "email" as const,
@@ -427,6 +716,42 @@ test(
         });
         assert.equal(saved.statusCode, 200, saved.body);
         assert.equal(saved.json().profile.first_name, "Ravi");
+        const maximum = await app.inject({
+          method: "POST",
+          url: "/api/v1/auth/profile",
+          headers: authenticatedHeaders,
+          payload: {
+            first_name: "A".repeat(100),
+            middle_name: "B".repeat(100),
+            surname: "C".repeat(100),
+            image_url: null,
+          },
+        });
+        assert.equal(maximum.statusCode, 200, maximum.body);
+        assert.equal(
+          (
+            await app.inject({
+              method: "GET",
+              url: "/api/v1/auth/session",
+              headers: authenticatedHeaders,
+            })
+          ).statusCode,
+          200,
+        );
+        assert.equal(
+          (
+            await app.inject({
+              method: "POST",
+              url: "/api/v1/auth/password/sessions",
+              headers,
+              payload: {
+                email: input.destination,
+                password: "secure password",
+              },
+            })
+          ).statusCode,
+          200,
+        );
         const unauthorized = await app.inject({
           method: "GET",
           url: "/api/v1/auth/account",

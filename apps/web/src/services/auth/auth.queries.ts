@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { identityKeys } from "./identity.service";
 
 import {
   authKeys,
@@ -8,11 +10,20 @@ import {
 } from "./auth.service";
 
 export function useAuthSessionQuery() {
-  return useQuery({
+  const client = useQueryClient();
+  const session = useQuery({
     queryKey: authKeys.session(),
     queryFn: ({ signal }) => getAuthSession(signal),
     retry: false,
   });
+  useEffect(() => {
+    if (session.isSuccess && !session.data) {
+      void client.cancelQueries({ queryKey: identityKeys.all }).then(() => {
+        client.removeQueries({ queryKey: identityKeys.all });
+      });
+    }
+  }, [client, session.isSuccess, session.data]);
+  return session;
 }
 
 export function useAuthSessionsQuery(enabled = true) {

@@ -45,7 +45,7 @@ export function GoogleLink() {
         callback: (response) => {
           void linkGoogleIdentity({ credential: response.credential })
             .then(async () => {
-              await client.invalidateQueries({ queryKey: identityKeys });
+              await client.invalidateQueries({ queryKey: identityKeys.all });
               setFeedback("Google sign-in method linked.");
             })
             .catch((error: unknown) =>

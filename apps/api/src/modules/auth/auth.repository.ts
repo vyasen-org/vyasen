@@ -598,7 +598,7 @@ export function createAuthRepository(db: Executor) {
       sessionId: string,
       now: Date,
     ) {
-      return executor
+      const revoked = await executor
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("id", "=", sessionId)
@@ -606,15 +606,31 @@ export function createAuthRepository(db: Executor) {
         .where("revoked_at", "is", null)
         .returning("id")
         .executeTakeFirst();
+      if (revoked)
+        await this.insertSecurityEvent(
+          executor,
+          userId,
+          "session_revoked",
+          null,
+        );
+      return revoked;
     },
 
     async revokeAllSessions(executor: Executor, userId: string, now: Date) {
-      await executor
+      const revoked = await executor
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("user_id", "=", userId)
         .where("revoked_at", "is", null)
+        .returning("id")
         .execute();
+      if (revoked.length)
+        await this.insertSecurityEvent(
+          executor,
+          userId,
+          "sessions_revoked_all",
+          null,
+        );
     },
 
     async revokeSessionByToken(
@@ -622,12 +638,20 @@ export function createAuthRepository(db: Executor) {
       tokenHash: string,
       now: Date,
     ) {
-      await executor
+      const revoked = await executor
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("token_hash", "=", tokenHash)
         .where("revoked_at", "is", null)
-        .execute();
+        .returning("user_id")
+        .executeTakeFirst();
+      if (revoked)
+        await this.insertSecurityEvent(
+          executor,
+          revoked.user_id,
+          "session_revoked",
+          null,
+        );
     },
 
     async insertGoogleNonce(

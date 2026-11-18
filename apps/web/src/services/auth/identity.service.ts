@@ -13,7 +13,10 @@ import {
   authAvailabilitySchema,
 } from "@vyasen/contracts";
 import { apiRequest } from "@/lib/api-client";
-export const identityKeys = ["identity-account"] as const;
+export const identityKeys = {
+  all: ["identity-account"] as const,
+  account: (userId: string) => ["identity-account", userId] as const,
+};
 export const identityApi = {
   availability: () => apiRequest("/auth/availability", authAvailabilitySchema),
   issue: (input: z.infer<typeof identityChallengeSchema>) =>
@@ -53,6 +56,12 @@ export const identityApi = {
       "/auth/contacts/" + encodeURIComponent(id) + "/primary",
       operationSuccessSchema,
       { method: "POST" },
+    ),
+  removeContact: (id: string) =>
+    apiRequest(
+      "/auth/contacts/" + encodeURIComponent(id),
+      operationSuccessSchema,
+      { method: "DELETE" },
     ),
   unlink: (id: string) =>
     apiRequest(

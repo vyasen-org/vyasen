@@ -1,5 +1,25 @@
 # Identity & Authentication implementation and acceptance
 
+## Security remediation status (18 November 2026)
+
+The independent review of commit `35c8c34` found cross-account browser cache
+disclosure, password-login/unlink races, last-usable-method lockout, a profile
+response limit mismatch, broken automatic Google One Tap callback handling,
+skipped database tests in the root CI command, missing contact removal, and
+incomplete audit events. Follow-up implementation changes address these items;
+their verification results must be read together with the current test run,
+not inferred from the older results below.
+
+**Persistent database upgrade remains blocked.** The old six-table baseline
+has already been applied in some possible environments, but an inventory of
+their schemas, data value, and migration history is not available. The current
+hardening migration fails against the old schema because `user_contacts` does
+not exist. No production or shared database was migrated or reset. Before
+deploying, inventory each environment and implement a data-preserving forward
+migration if any old-schema database must be retained; otherwise rebuild only
+an explicitly identified disposable database. The old-schema upgrade is not
+accepted by the fresh-database tests.
+
 Review date: 2026-11-17. This report records implementation and verification
 evidence, rather than claiming production readiness or live-provider delivery.
 

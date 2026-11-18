@@ -125,5 +125,16 @@ const routes: FastifyPluginAsync<{
     },
     c.unlink,
   );
+  app.delete(
+    "/contacts/:id",
+    {
+      preHandler: required,
+      schema: {
+        params: accountItemSchema,
+        response: { 200: operationSuccessSchema },
+      },
+    },
+    c.removeContact,
+  );
 };
 export default routes;

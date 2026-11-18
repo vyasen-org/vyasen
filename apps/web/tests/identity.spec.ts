@@ -1,6 +1,141 @@
 import { expect, test } from "@playwright/test";
 test.describe.configure({ mode: "serial" });
 
+test("automatic One Tap submits a delayed credential once", async ({
+  page,
+}) => {
+  let submissions = 0;
+  await page.route("**/api/v1/auth/google/nonce", (route) =>
+    route.fulfill({
+      json: {
+        clientId: "test-client",
+        nonce: "test-nonce",
+        expiresInSeconds: 300,
+      },
+    }),
+  );
+  await page.route("**/api/v1/auth/google/one-tap", (route) => {
+    submissions += 1;
+    return route.fulfill({
+      status: 401,
+      json: {
+        error: { code: "test_rejected", message: "Controlled provider" },
+      },
+    });
+  });
+  await page.addInitScript(() => {
+    let callback: ((response: { credential: string }) => void) | undefined;
+    window.google = {
+      accounts: {
+        id: {
+          initialize(options) {
+            callback = options.callback;
+          },
+          prompt() {
+            window.setTimeout(
+              () => callback?.({ credential: "controlled-credential" }),
+              500,
+            );
+          },
+          cancel() {},
+          disableAutoSelect() {},
+        },
+      },
+    };
+  });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect.poll(() => submissions).toBe(1);
+});
+
+test("Alice's profile is cleared before Bob signs in with email OTP", async ({
+  page,
+  request,
+}) => {
+  const api = "http://127.0.0.1:4318";
+  const origin = "http://127.0.0.1:4317";
+  const alice = "alice-" + Date.now() + "@example.test";
+  const issued = await page.request.post(api + "/api/v1/auth/challenges", {
+    headers: { origin },
+    data: { channel: "email", purpose: "sign_in", destination: alice },
+  });
+  const { challengeId } = await issued.json();
+  const code = await request.get(
+    api + "/test-code?destination=" + encodeURIComponent(alice),
+  );
+  const signed = await page.request.post(
+    api + "/api/v1/auth/challenges/verify",
+    {
+      headers: { origin },
+      data: {
+        channel: "email",
+        purpose: "sign_in",
+        destination: alice,
+        challengeId,
+        code: (await code.json()).code,
+      },
+    },
+  );
+  expect(signed.status()).toBe(200);
+  await page.request.post(api + "/api/v1/auth/profile", {
+    headers: { origin },
+    data: {
+      first_name: "Private Alice",
+      middle_name: null,
+      surname: null,
+      image_url: null,
+    },
+  });
+  await page.goto("/settings/profile", { waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("First name", { exact: true })).toHaveValue(
+    "Private Alice",
+  );
+  await page.evaluate(async () => {
+    const { router } = await import("../src/router");
+    await router.navigate({ to: "/settings/account" });
+  });
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Revoke session", exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      (await page.request.get(api + "/api/v1/auth/session")).status(),
+    )
+    .toBe(401);
+  await page.evaluate(async () => {
+    const { router } = await import("../src/router");
+    await router.navigate({ to: "/" });
+  });
+  await page.getByRole("link", { name: "Log in" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const bob = "bob-" + Date.now() + "@example.test";
+  await page.getByLabel("Email", { exact: true }).fill(bob);
+  await page.getByRole("button", { name: "Continue with email" }).click();
+  await page.getByLabel("6-digit verification code").waitFor();
+  const codeUrl = api + "/test-code?destination=" + encodeURIComponent(bob);
+  await expect
+    .poll(async () => (await (await request.get(codeUrl)).json()).code)
+    .toMatch(/^\d{6}$/);
+  await page
+    .getByLabel("6-digit verification code")
+    .fill((await (await request.get(codeUrl)).json()).code);
+  await page.getByRole("button", { name: "Verify", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(api + "/api/v1/auth/session")).json())
+          .user?.email,
+    )
+    .toBe(bob);
+  await page.evaluate(async () => {
+    const { router } = await import("../src/router");
+    await router.navigate({ to: "/settings/profile" });
+  });
+  await expect(page.getByLabel("First name", { exact: true })).toHaveValue("");
+  await expect(page.getByText("Private Alice")).toHaveCount(0);
+});
+
 for (const channel of ["email", "sms"] as const) {
   test(
     channel + " passwordless signup uses a real API session",
@@ -117,6 +252,13 @@ test("password signup verifies email first, saves profile, and revokes the sessi
   await page.getByRole("button", { name: "Verify", exact: true }).click();
   await expect(page.getByText(contactEmail, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Make primary", exact: true }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByText(contactEmail, { exact: true })
+    .locator("..")
+    .getByRole("button", { name: "Remove contact" })
+    .click();
+  await expect(page.getByText(contactEmail, { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Remove method", exact: true }),
   ).toBeDisabled();
