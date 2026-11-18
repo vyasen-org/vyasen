@@ -43,8 +43,10 @@ export class GoogleProvider {
     private readonly clientId: string,
     clientSecret: string,
     redirectUri: string,
+    client?: OAuth2Client,
   ) {
-    this.client = new OAuth2Client(clientId, clientSecret, redirectUri);
+    this.client =
+      client ?? new OAuth2Client(clientId, clientSecret, redirectUri);
   }
 
   createAuthorizationUrl(

@@ -153,18 +153,20 @@ test(
         .where("user_id", "=", user.id)
         .executeTakeFirstOrThrow();
 
-      for (let index = 0; index < 6; index += 1) {
-        const now = new Date(Date.now() + index * 1000);
-        await db.transaction().execute(async (trx) => {
-          await createAuthRepository(trx).createSession(trx, {
-            userId: user.id,
-            tokenHash: hashSessionToken(createSessionToken()),
-            metadata,
-            now,
-            expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      await Promise.all(
+        Array.from({ length: 6 }, async (_, index) => {
+          const now = new Date(Date.now() + index * 1000);
+          await db.transaction().execute(async (trx) => {
+            await createAuthRepository(trx).createSession(trx, {
+              userId: user.id,
+              tokenHash: hashSessionToken(createSessionToken()),
+              metadata,
+              now,
+              expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+            });
           });
-        });
-      }
+        }),
+      );
 
       const activeSessions = await db
         .selectFrom("sessions")
@@ -180,6 +182,28 @@ test(
         .executeTakeFirstOrThrow();
 
       assert.equal(activeSessions.length, 5);
+      const capEvents = await db
+        .selectFrom("auth_security_events")
+        .select("id")
+        .where("event_type", "=", "sessions_revoked_limit")
+        .execute();
+      assert.ok(capEvents.length > 0);
+      await Promise.all(
+        activeSessions.map((session) =>
+          service.revokeSession(user.id, session.id),
+        ),
+      );
+      assert.equal(
+        (
+          await db
+            .selectFrom("sessions")
+            .select("id")
+            .where("user_id", "=", user.id)
+            .where("revoked_at", "is", null)
+            .execute()
+        ).length,
+        0,
+      );
       assert.ok(originalSession.revoked_at instanceof Date);
     } finally {
       await db.destroy();

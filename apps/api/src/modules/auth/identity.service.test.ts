@@ -281,6 +281,24 @@ test(
         "remove_contact",
       );
       const afterRemoval = await service.account(signed.user.id);
+      await identityRepository(db).addContact(
+        signed.user.id,
+        "email",
+        "nonprimary@example.test",
+      );
+      const nonprimary = (await service.account(signed.user.id)).contacts.find(
+        (contact) => contact.normalized_value === "nonprimary@example.test",
+      )!;
+      assert.equal(nonprimary.is_primary, false);
+      await service.changeMethod(
+        signed.user.id,
+        nonprimary.id,
+        "remove_contact",
+      );
+      assert.equal(
+        (await service.account(signed.user.id)).contacts.length,
+        afterRemoval.contacts.length,
+      );
       assert.equal(
         afterRemoval.contacts.some((c) => c.id === currentPrimary.id),
         false,
@@ -333,10 +351,86 @@ test(
         );
       });
       const phone = {
+        // Provider availability is enforced independently of identity row count.
         destination: "+14155552671",
         channel: "sms" as const,
         purpose: "sign_in" as const,
       };
+      const fallbackUser = await identityRepository(db).createUser();
+      await identityRepository(db).addIdentity(
+        fallbackUser,
+        "email",
+        "fallback@example.test",
+      );
+      await identityRepository(db).addIdentity(
+        fallbackUser,
+        "phone",
+        "+14155552673",
+      );
+      await identityRepository(db).credentialSet(
+        fallbackUser,
+        "unsupported-hash",
+      );
+      const fallbackMethods = (await service.account(fallbackUser)).identities;
+      const fallbackPhone = fallbackMethods.find(
+        (method) => method.provider === "phone",
+      )!;
+      const fallbackService = new IdentityService(
+        db,
+        { ...config, smtp: null },
+        email,
+        sms,
+      );
+      await assert.rejects(
+        fallbackService.changeMethod(fallbackUser, fallbackPhone.id, "unlink"),
+        { code: "operation_unavailable" },
+      );
+      await db
+        .insertInto("auth_identities")
+        .values({
+          user_id: fallbackUser,
+          provider: "google",
+          provider_subject: "unavailable-google",
+          verified_at: new Date(),
+        })
+        .execute();
+      const disabledGoogle = new IdentityService(
+        db,
+        {
+          ...config,
+          smtp: null,
+          googleClientId: null,
+          googleClientSecret: null,
+        },
+        email,
+        sms,
+      );
+      await assert.rejects(
+        disabledGoogle.changeMethod(fallbackUser, fallbackPhone.id, "unlink"),
+        { code: "operation_unavailable" },
+      );
+      await db
+        .deleteFrom("auth_identities")
+        .where("provider_subject", "=", "unavailable-google")
+        .execute();
+      const validCredential = await identityRepository(db).credential(
+        signed.user.id,
+      );
+      await db
+        .updateTable("auth_credentials")
+        .set({ password_hash: validCredential!.password_hash })
+        .where("user_id", "=", fallbackUser)
+        .execute();
+      const removals = await Promise.allSettled(
+        fallbackMethods.map((method) =>
+          fallbackService.changeMethod(fallbackUser, method.id, "unlink"),
+        ),
+      );
+      assert.equal(
+        removals.filter((result) => result.status === "fulfilled").length,
+        1,
+      );
+      assert.equal((await service.account(fallbackUser)).identities.length, 1);
       const failingEmail = new (class extends Email {
         override async sendSignInCode() {
           throw new Error("controlled delivery failure");
@@ -474,6 +568,100 @@ test(
         ),
       );
       assert.ok(await auth.authenticateSession(signed.token));
+      const googleMethod = (
+        await service.account(signed.user.id)
+      ).identities.find((method) => method.provider === "google")!;
+      const completedNonce = await googleAuth.createOneTapNonce("127.0.0.43");
+      google.identity.nonce = completedNonce.nonce!;
+      const completedGoogle = await googleAuth.signInWithOneTap(
+        "controlled-test-credential",
+        { ...metadata, ipAddress: "127.0.0.43" },
+      );
+      assert.equal(completedGoogle.user.id, signed.user.id);
+      const raceNonce = await googleAuth.createOneTapNonce("127.0.0.40");
+      google.identity.nonce = raceNonce.nonce!;
+      let racingGoogle:
+        ReturnType<typeof googleAuth.signInWithOneTap> | undefined;
+      await db.transaction().execute(async (trx) => {
+        const repo = identityRepository(trx);
+        await repo.lockUser(signed.user.id);
+        racingGoogle = googleAuth.signInWithOneTap(
+          "controlled-test-credential",
+          { ...metadata, ipAddress: "127.0.0.40" },
+        );
+        racingGoogle.catch(() => undefined);
+        let waiting = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await sql`select pg_stat_clear_snapshot()`.execute(trx);
+          const state = await sql<{
+            count: number;
+          }>`select count(*)::int as count from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and query like '%users%'`.execute(
+            trx,
+          );
+          if (state.rows[0].count > 0) {
+            waiting = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        assert.ok(waiting, "Google login must wait for the account lock");
+        assert.equal(
+          await repo.unlink(signed.user.id, googleMethod.id, {
+            emailOtp: true,
+            sms: false,
+            google: false,
+          }),
+          true,
+        );
+      });
+      await assert.rejects(racingGoogle!, { code: "google_auth_failed" });
+      assert.ok(
+        await auth.authenticateSession(completedGoogle.token),
+        "Authentication committed before unlink retains its issued session",
+      );
+      const linkingUsers = [signed.user.id, googleSession.user.id];
+      const concurrentLinks = await Promise.all(
+        linkingUsers.map(async (userId, index) => {
+          const provider = new Google();
+          const linkingAuth = new AuthService({
+            db: db!,
+            config: { ...config, googleClientId: "test-client" },
+            emailProvider: email,
+            googleProvider: provider,
+          });
+          const challenge = await linkingAuth.createOneTapNonce(
+            "127.0.0." + (41 + index),
+          );
+          provider.identity = {
+            ...provider.identity,
+            subject: "concurrent-link-subject",
+            nonce: challenge.nonce!,
+          };
+          return () =>
+            linkingAuth.linkGoogleIdentity(
+              userId,
+              "controlled-link-credential",
+              "127.0.0." + (41 + index),
+            );
+        }),
+      );
+      const linkResults = await Promise.allSettled(
+        concurrentLinks.map((link) => link()),
+      );
+      assert.equal(
+        linkResults.filter((result) => result.status === "fulfilled").length,
+        1,
+      );
+      assert.equal(
+        (
+          await db
+            .selectFrom("auth_identities")
+            .select("id")
+            .where("provider_subject", "=", "concurrent-link-subject")
+            .execute()
+        ).length,
+        1,
+      );
       const eventCountBeforeLogout = await db
         .selectFrom("auth_security_events")
         .select("id")
@@ -495,6 +683,21 @@ test(
       assert.ok(
         auditRows.some((event) => event.event_type === "session_revoked"),
       );
+      assert.ok(
+        auditRows.some((event) => event.event_type === "google_auth_failed"),
+      );
+      for (const secret of [
+        signed.token,
+        signupProof,
+        "controlled-test-credential",
+        "secure password",
+      ]) {
+        assert.ok(
+          auditRows.every(
+            (event) => !JSON.stringify(event.metadata).includes(secret),
+          ),
+        );
+      }
       assert.ok(
         auditRows.some((event) => event.event_type === "contact_removed"),
       );
@@ -790,6 +993,38 @@ test(
         );
       } finally {
         await app.close();
+      }
+      await auth.revokeAllSessions(signed.user.id);
+      const recorded = await db
+        .selectFrom("auth_security_events")
+        .select(["event_type", "metadata"])
+        .execute();
+      for (const event of [
+        "account_created",
+        "identity_linked",
+        "identity_unlinked",
+        "contact_verified",
+        "contact_removed",
+        "contact_primary_changed",
+        "profile_updated",
+        "session_created",
+        "session_revoked",
+        "sessions_revoked_all",
+        "google_auth_failed",
+        "password_sign_in_failed",
+        "otp_verification_failed",
+      ]) {
+        assert.ok(
+          recorded.some((row) => row.event_type === event),
+          "Missing security event: " + event,
+        );
+      }
+      for (const row of recorded) {
+        assert.deepEqual(
+          row.metadata,
+          {},
+          "Authentication audit metadata must not copy untrusted credentials or errors",
+        );
       }
     } finally {
       await db?.destroy();

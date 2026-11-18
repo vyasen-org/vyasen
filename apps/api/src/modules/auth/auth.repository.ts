@@ -511,6 +511,12 @@ export function createAuthRepository(db: Executor) {
             sessionsToRevoke.map((session) => session.id),
           )
           .execute();
+        await this.insertSecurityEvent(
+          executor,
+          values.userId,
+          "sessions_revoked_limit",
+          null,
+        );
       }
 
       const session = await executor

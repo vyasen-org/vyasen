@@ -139,6 +139,7 @@ function RootLayout() {
     }
 
     let active = true;
+    let submitted = false;
     const initializeGoogle = () => {
       if (!active || !window.google) return;
       autoOneTapAttempted.current = true;
@@ -146,7 +147,8 @@ function RootLayout() {
         client_id: clientId,
         nonce,
         callback: (response) => {
-          if (!active) return;
+          if (!active || submitted) return;
+          submitted = true;
           submitOneTapCredential(
             { credential: response.credential },
             {
