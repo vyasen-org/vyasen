@@ -6,7 +6,7 @@ PostgreSQL.
 
 ## Requirements
 
-- Node.js 24 or newer
+- Node.js 24.7 or newer (includes native asynchronous Argon2id)
 - pnpm 12
 
 ## Getting started
@@ -35,20 +35,30 @@ setup, schema, flow, and deployment details.
 apps/
   api/              Fastify API and email/Google authentication
   web/              React, Vite, TanStack Router and Query
+  docs/             Static Docusaurus project hub and documentation
 packages/
   config/           Reserved for shared configuration
   contracts/        Shared Zod contracts and TypeScript types
   database/         Kysely client and versioned PostgreSQL migrations
 ```
 
+The deployment name defaults to **Vyasen**. Set `VITE_APP_NAME` for the web
+application and `APP_NAME` for the API to customize customer-facing branding;
+the web value is embedded at build time. Auth cookie names are derived from
+`APP_NAME` (for example, `vyasen_session` and `vyasen_google_oauth`).
+
 The router uses a pathless authenticated route group for the dashboard and
 settings pages, so their browser paths are `/dashboard` and `/settings`.
 Settings include `/settings/appearance` and `/settings/sidebar`. Appearance
 and sidebar preferences are validated and saved in the browser's local storage;
-they are not yet synchronized between devices or stored per user or school.
+they are not yet synchronized between devices or stored per user or workspace.
 The sidebar supports left, right, top, and bottom placement, and its preview
 navigation changes with the selected demo role.
 
-Authentication does not assign a school, membership, role, or permission.
-Those must be granted by later school-onboarding and membership workflows;
+Authentication does not assign an institution, membership, role, or permission.
+Those must be granted by later institution-onboarding and membership workflows;
 frontend role previews are not an authorization boundary.
+
+The static public documentation and project hub live in
+[`apps/docs`](./apps/docs/README.md); they can be built and deployed separately
+from the application API and database.

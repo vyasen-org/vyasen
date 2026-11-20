@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["*"]
+  push:
+    branches-ignore:
+      - develop
+
+permissions:
+  contents: read
+
+# Cancel previous in-progress runs for the same branch so we don't
+# waste runner minutes when contributors push fixes quickly.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      identity-postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: identity_test
+          POSTGRES_DB: vyasen_auth_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 55439:5432
+        options: >-
+          --health-cmd "pg_isready -U identity_test -d vyasen_auth_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://identity_test@127.0.0.1:55439/postgres
+      AUTH_TEST_DATABASE_URL: postgresql://identity_test@127.0.0.1:55439/vyasen_auth_test
+      RUN_IDENTITY_DATABASE_TESTS: "1"
+      AUTH_CODE_HASH_SECRET: ci-code-secret-for-tests-at-least-32-characters
+      AUTH_STATE_SECRET: ci-state-secret-for-tests-at-least-32-characters
+      AUTH_RATE_LIMIT_SECRET: ci-rate-secret-for-tests-at-least-32-characters
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # --frozen-lockfile ensures contributors don't accidentally commit
+      # an outdated pnpm-lock.yaml.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # TypeScript type checking across all workspace packages.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # ESLint — catches issues tsc misses (floating promises, any types, etc.)
+      - name: Lint (ESLint)
+        run: pnpm lint:check
+
+      # Node built-in test runner for the auth module unit tests.
+      - name: Test
+        run: |
+          pnpm test | tee /tmp/vyasen-tests.log
+          if grep -Eq '(^|[[:space:]])(skipped [1-9]|# SKIP)' /tmp/vyasen-tests.log; then
+            echo "Mandatory authentication tests were skipped."
+            exit 1
+          fi
+
+      - name: Install browser for identity journeys
+        run: pnpm --filter @vyasen/web exec playwright install --with-deps chrome
+
+      - name: Browser identity journeys
+        run: pnpm --filter @vyasen/web test:browser
+
+      # Verify the web app and static documentation site build cleanly.
+      - name: Build
+        run: pnpm build
