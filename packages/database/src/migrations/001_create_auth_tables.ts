@@ -8,12 +8,6 @@ export async function up(db: Kysely<Database>): Promise<void> {
     .addColumn("id", "uuid", (column) =>
       column.primaryKey().defaultTo(sql`gen_random_uuid()`),
     )
-    .addColumn("email", "varchar(254)", (column) =>
-      column.notNull().unique(),
-    )
-    .addColumn("email_verified_at", "timestamptz")
-    .addColumn("name", "varchar(200)")
-    .addColumn("image", "text")
     .addColumn("status", "varchar(20)", (column) =>
       column.notNull().defaultTo("active"),
     )
@@ -25,13 +19,85 @@ export async function up(db: Kysely<Database>): Promise<void> {
     )
     .addColumn("last_login_at", "timestamptz")
     .addCheckConstraint(
-      "users_email_normalized_check",
-      sql`email = lower(btrim(email))`,
+      "users_status_check",
+      sql`status IN ('active', 'disabled')`,
+    )
+    .execute();
+
+  await db.schema
+    .createTable("personal_profiles")
+    .addColumn("user_id", "uuid", (column) =>
+      column.primaryKey().references("users.id").onDelete("cascade"),
+    )
+    .addColumn("first_name", "varchar(100)")
+    .addColumn("middle_name", "varchar(100)")
+    .addColumn("surname", "varchar(100)")
+    .addColumn("image_url", "text")
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn("updated_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
     )
     .addCheckConstraint(
-      "users_status_check",
-      sql`status in ('active', 'disabled')`,
+      "personal_profiles_first_name_check",
+      sql`first_name IS NULL OR btrim(first_name) <> ''`,
     )
+    .addCheckConstraint(
+      "personal_profiles_middle_name_check",
+      sql`middle_name IS NULL OR btrim(middle_name) <> ''`,
+    )
+    .addCheckConstraint(
+      "personal_profiles_surname_check",
+      sql`surname IS NULL OR btrim(surname) <> ''`,
+    )
+    .execute();
+
+  await db.schema
+    .createTable("user_contacts")
+    .addColumn("id", "uuid", (column) =>
+      column.primaryKey().defaultTo(sql`gen_random_uuid()`),
+    )
+    .addColumn("user_id", "uuid", (column) =>
+      column.notNull().references("users.id").onDelete("cascade"),
+    )
+    .addColumn("type", "varchar(10)", (column) => column.notNull())
+    .addColumn("normalized_value", "text", (column) => column.notNull())
+    .addColumn("verified_at", "timestamptz", (column) => column.notNull())
+    .addColumn("is_primary", "boolean", (column) =>
+      column.notNull().defaultTo(false),
+    )
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn("updated_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addCheckConstraint(
+      "user_contacts_type_check",
+      sql`type IN ('email', 'phone')`,
+    )
+    .execute();
+
+  await db.schema
+    .createIndex("user_contacts_user_type_value_unique")
+    .unique()
+    .on("user_contacts")
+    .columns(["user_id", "type", "normalized_value"])
+    .execute();
+
+  await db.schema
+    .createIndex("user_contacts_primary_type_idx")
+    .unique()
+    .on("user_contacts")
+    .columns(["user_id", "type"])
+    .where(sql<SqlBool>`is_primary = true`)
+    .execute();
+
+  await db.schema
+    .createIndex("user_contacts_type_value_idx")
+    .on("user_contacts")
+    .columns(["type", "normalized_value"])
     .execute();
 
   await db.schema
@@ -42,62 +108,99 @@ export async function up(db: Kysely<Database>): Promise<void> {
     .addColumn("user_id", "uuid", (column) =>
       column.notNull().references("users.id").onDelete("cascade"),
     )
-    .addColumn("provider", "varchar(20)", (column) => column.notNull())
-    .addColumn("provider_subject", "varchar(254)", (column) =>
-      column.notNull(),
-    )
+    .addColumn("provider", "varchar(32)", (column) => column.notNull())
+    .addColumn("provider_subject", "text", (column) => column.notNull())
+    .addColumn("verified_at", "timestamptz", (column) => column.notNull())
     .addColumn("created_at", "timestamptz", (column) =>
       column.notNull().defaultTo(sql`now()`),
     )
+    .addColumn("last_used_at", "timestamptz")
     .addCheckConstraint(
       "auth_identities_provider_check",
-      sql`provider in ('email', 'google')`,
+      sql`provider IN ('email', 'phone', 'google')`,
     )
-    .addUniqueConstraint(
-      "auth_identities_provider_subject_unique",
-      ["provider", "provider_subject"],
-    )
-    .addUniqueConstraint("auth_identities_user_provider_unique", [
-      "user_id",
-      "provider",
-    ])
     .execute();
 
   await db.schema
-    .createTable("email_verification_codes")
+    .createIndex("auth_identities_provider_subject_unique")
+    .unique()
+    .on("auth_identities")
+    .columns(["provider", "provider_subject"])
+    .execute();
+
+  await db.schema
+    .createIndex("auth_identities_user_provider_idx")
+    .on("auth_identities")
+    .columns(["user_id", "provider"])
+    .execute();
+
+  await db.schema
+    .createTable("auth_credentials")
+    .addColumn("user_id", "uuid", (column) =>
+      column.primaryKey().references("users.id").onDelete("cascade"),
+    )
+    .addColumn("password_hash", "text", (column) => column.notNull())
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn("password_changed_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .execute();
+
+  await db.schema
+    .createTable("auth_challenges")
     .addColumn("id", "uuid", (column) =>
       column.primaryKey().defaultTo(sql`gen_random_uuid()`),
     )
-    .addColumn("email", "varchar(254)", (column) => column.notNull())
-    .addColumn("code_hash", "char(64)", (column) => column.notNull())
-    .addColumn("purpose", "varchar(24)", (column) => column.notNull())
-    .addColumn("expires_at", "timestamptz", (column) => column.notNull())
-    .addColumn("consumed_at", "timestamptz")
+    .addColumn("user_id", "uuid", (column) =>
+      column.references("users.id").onDelete("cascade"),
+    )
+    .addColumn("auth_identity_id", "uuid", (column) =>
+      column.references("auth_identities.id").onDelete("cascade"),
+    )
+    .addColumn("channel", "varchar(10)", (column) => column.notNull())
+    .addColumn("purpose", "varchar(32)", (column) => column.notNull())
+    .addColumn("destination_hash", "char(64)", (column) => column.notNull())
+    .addColumn("secret_hash", "text", (column) => column.notNull())
     .addColumn("attempt_count", "smallint", (column) =>
       column.notNull().defaultTo(0),
     )
+    .addColumn("expires_at", "timestamptz", (column) => column.notNull())
+    .addColumn("consumed_at", "timestamptz")
     .addColumn("created_at", "timestamptz", (column) =>
       column.notNull().defaultTo(sql`now()`),
     )
     .addCheckConstraint(
-      "email_verification_codes_purpose_check",
-      sql`purpose = 'sign_in'`,
+      "auth_challenges_channel_check",
+      sql`channel IN ('email', 'sms')`,
     )
     .addCheckConstraint(
-      "email_verification_codes_attempt_count_check",
-      sql`attempt_count between 0 and 5`,
+      "auth_challenges_purpose_check",
+      sql`purpose IN ('signup', 'sign_in', 'password_setup', 'password_reset', 'account_link', 'contact_verify')`,
+    )
+    .addCheckConstraint(
+      "auth_challenges_attempt_count_check",
+      sql`attempt_count BETWEEN 0 AND 5`,
     )
     .execute();
 
   await db.schema
-    .createIndex("email_verification_codes_email_created_idx")
-    .on("email_verification_codes")
-    .columns(["email", "purpose", "created_at"])
+    .createIndex("auth_challenges_destination_purpose_created_idx")
+    .on("auth_challenges")
+    .columns(["destination_hash", "purpose", "created_at"])
     .execute();
 
   await db.schema
-    .createIndex("email_verification_codes_expiry_idx")
-    .on("email_verification_codes")
+    .createIndex("auth_challenges_user_created_idx")
+    .on("auth_challenges")
+    .columns(["user_id", "created_at"])
+    .where(sql<SqlBool>`user_id IS NOT NULL`)
+    .execute();
+
+  await db.schema
+    .createIndex("auth_challenges_expiry_idx")
+    .on("auth_challenges")
     .column("expires_at")
     .execute();
 
@@ -109,13 +212,10 @@ export async function up(db: Kysely<Database>): Promise<void> {
     .addColumn("user_id", "uuid", (column) =>
       column.notNull().references("users.id").onDelete("cascade"),
     )
-    .addColumn("token_hash", "char(64)", (column) => column.notNull().unique())
+    .addColumn("token_hash", "char(64)", (column) => column.notNull())
     .addColumn("ip_address", "varchar(45)")
     .addColumn("user_agent", "varchar(1024)")
     .addColumn("device_name", "varchar(200)")
-    .addColumn("device_type", "varchar(40)")
-    .addColumn("browser", "varchar(120)")
-    .addColumn("os", "varchar(120)")
     .addColumn("created_at", "timestamptz", (column) =>
       column.notNull().defaultTo(sql`now()`),
     )
@@ -124,6 +224,17 @@ export async function up(db: Kysely<Database>): Promise<void> {
     )
     .addColumn("expires_at", "timestamptz", (column) => column.notNull())
     .addColumn("revoked_at", "timestamptz")
+    .execute();
+
+  await sql`ALTER TABLE sessions ALTER COLUMN ip_address TYPE inet USING ip_address::inet;`.execute(
+    db,
+  );
+
+  await db.schema
+    .createIndex("sessions_token_hash_unique")
+    .unique()
+    .on("sessions")
+    .column("token_hash")
     .execute();
 
   await db.schema
@@ -136,15 +247,30 @@ export async function up(db: Kysely<Database>): Promise<void> {
   await db.schema
     .createIndex("sessions_expiry_idx")
     .on("sessions")
-    .columns(["expires_at", "revoked_at"])
+    .column("expires_at")
+    .execute();
+
+  await db.schema
+    .createTable("auth_nonces")
+    .addColumn("nonce_hash", "char(64)", (column) => column.primaryKey())
+    .addColumn("purpose", "varchar(32)", (column) => column.notNull())
+    .addColumn("expires_at", "timestamptz", (column) => column.notNull())
+    .addColumn("consumed_at", "timestamptz")
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .execute();
+
+  await db.schema
+    .createIndex("auth_nonces_expiry_idx")
+    .on("auth_nonces")
+    .column("expires_at")
     .execute();
 
   await db.schema
     .createTable("auth_rate_limits")
     .addColumn("bucket_hash", "char(64)", (column) => column.primaryKey())
-    .addColumn("window_started_at", "timestamptz", (column) =>
-      column.notNull(),
-    )
+    .addColumn("window_started_at", "timestamptz", (column) => column.notNull())
     .addColumn("request_count", "integer", (column) => column.notNull())
     .addColumn("expires_at", "timestamptz", (column) => column.notNull())
     .addCheckConstraint(
@@ -160,32 +286,45 @@ export async function up(db: Kysely<Database>): Promise<void> {
     .execute();
 
   await db.schema
-    .createTable("auth_nonces")
-    .addColumn("nonce_hash", "char(64)", (column) => column.primaryKey())
-    .addColumn("purpose", "varchar(24)", (column) => column.notNull())
-    .addColumn("expires_at", "timestamptz", (column) => column.notNull())
-    .addColumn("consumed_at", "timestamptz")
-    .addColumn("created_at", "timestamptz", (column) =>
+    .createTable("auth_security_events")
+    .addColumn("id", "uuid", (column) =>
+      column.primaryKey().defaultTo(sql`gen_random_uuid()`),
+    )
+    .addColumn("user_id", "uuid", (column) =>
+      column.references("users.id").onDelete("set null"),
+    )
+    .addColumn("event_type", "varchar(48)", (column) => column.notNull())
+    .addColumn("identity_id", "uuid")
+    .addColumn("occurred_at", "timestamptz", (column) =>
       column.notNull().defaultTo(sql`now()`),
     )
-    .addCheckConstraint(
-      "auth_nonces_purpose_check",
-      sql`purpose = 'google_one_tap'`,
+    .addColumn("metadata", "jsonb", (column) =>
+      column.notNull().defaultTo(sql`'{}'::jsonb`),
     )
     .execute();
 
   await db.schema
-    .createIndex("auth_nonces_expiry_idx")
-    .on("auth_nonces")
-    .column("expires_at")
+    .createIndex("auth_security_events_user_occurred_idx")
+    .on("auth_security_events")
+    .columns(["user_id", "occurred_at"])
+    .execute();
+
+  await db.schema
+    .createIndex("auth_security_events_type_occurred_idx")
+    .on("auth_security_events")
+    .columns(["event_type", "occurred_at"])
     .execute();
 }
 
 export async function down(db: Kysely<Database>): Promise<void> {
-  await db.schema.dropTable("auth_nonces").ifExists().execute();
+  await db.schema.dropTable("auth_security_events").ifExists().execute();
   await db.schema.dropTable("auth_rate_limits").ifExists().execute();
+  await db.schema.dropTable("auth_nonces").ifExists().execute();
   await db.schema.dropTable("sessions").ifExists().execute();
-  await db.schema.dropTable("email_verification_codes").ifExists().execute();
+  await db.schema.dropTable("auth_challenges").ifExists().execute();
+  await db.schema.dropTable("auth_credentials").ifExists().execute();
   await db.schema.dropTable("auth_identities").ifExists().execute();
+  await db.schema.dropTable("user_contacts").ifExists().execute();
+  await db.schema.dropTable("personal_profiles").ifExists().execute();
   await db.schema.dropTable("users").ifExists().execute();
 }

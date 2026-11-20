@@ -1,4 +1,11 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   createRootRoute,
   Outlet,
@@ -48,13 +55,19 @@ function RootLayout() {
   const loginRequested = searchParams.get("login") === "1";
   const loginOpen = loginRequested && !authenticated;
   const autoOneTapAttempted = useRef(false);
+  // Track whether we have already attempted Google One Tap as state so the
+  // value participates in the render cycle without reading a ref during render
+  // (react-hooks/refs). The ref is kept as the write target inside the effect
+  // to avoid a double-render on the frame the tap fires.
+  const [autoOneTapDone, setAutoOneTapDone] = useState(false);
   const autoOneTapEnabled =
     authSessionQuery.isSuccess &&
     !authenticated &&
     !loginRequested &&
-    !autoOneTapAttempted.current;
+    !autoOneTapDone;
   const googleNonceQuery = useGoogleNonceQuery(autoOneTapEnabled);
   const googleSignInMutation = useGoogleSignInMutation();
+  const submitOneTapCredential = googleSignInMutation.mutate;
   const authResult = searchParams.get("auth");
   const notice =
     authResult === "link-required"
@@ -109,6 +122,7 @@ function RootLayout() {
   useEffect(() => {
     if (loginRequested) {
       autoOneTapAttempted.current = true;
+      setAutoOneTapDone(true);
       return;
     }
 
@@ -125,6 +139,7 @@ function RootLayout() {
     }
 
     let active = true;
+    let submitted = false;
     const initializeGoogle = () => {
       if (!active || !window.google) return;
       autoOneTapAttempted.current = true;
@@ -132,8 +147,9 @@ function RootLayout() {
         client_id: clientId,
         nonce,
         callback: (response) => {
-          if (!active) return;
-          googleSignInMutation.mutate(
+          if (!active || submitted) return;
+          submitted = true;
+          submitOneTapCredential(
             { credential: response.credential },
             {
               onError: () => {
@@ -183,10 +199,28 @@ function RootLayout() {
     currentLocation.hash,
     currentLocation.pathname,
     googleNonceQuery.data,
-    googleSignInMutation.mutate,
+    submitOneTapCredential,
     loginRequested,
     navigate,
   ]);
+
+  const handleAuthModalOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        void navigate({
+          to: currentLocation.pathname,
+          search: (previous) => ({
+            ...previous,
+            login: undefined,
+            auth: undefined,
+          }),
+          hash: currentLocation.hash,
+          replace: true,
+        });
+      }
+    },
+    [currentLocation.hash, currentLocation.pathname, navigate],
+  );
 
   return (
     <>
@@ -195,20 +229,7 @@ function RootLayout() {
         <AuthModal
           open={loginOpen}
           notice={notice}
-          onOpenChange={(open) => {
-            if (!open) {
-              void navigate({
-                to: currentLocation.pathname,
-                search: (previous) => ({
-                  ...previous,
-                  login: undefined,
-                  auth: undefined,
-                }),
-                hash: currentLocation.hash,
-                replace: true,
-              });
-            }
-          }}
+          onOpenChange={handleAuthModalOpenChange}
         />
       </Suspense>
     </>

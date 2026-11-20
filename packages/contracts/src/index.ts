@@ -1,6 +1,7 @@
 import { z } from "zod";
+export * from "./identity";
 
-export const schoolRoles = [
+export const workspaceRoles = [
   "admin",
   "principal",
   "teacher",
@@ -8,9 +9,9 @@ export const schoolRoles = [
   "hr",
 ] as const;
 
-export const schoolRoleSchema = z.enum(schoolRoles);
+export const workspaceRoleSchema = z.enum(workspaceRoles);
 
-export type SchoolRole = z.infer<typeof schoolRoleSchema>;
+export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 
 export {
   appearancePreferenceSchema,
@@ -29,6 +30,11 @@ export {
   authEmailCodeRequestSchema,
   authEmailCodeResponseSchema,
   authEmailCodeVerificationSchema,
+  authPhoneCodeRequestSchema,
+  authPhoneCodeResponseSchema,
+  authPhoneCodeVerificationSchema,
+  authPasswordSignInSchema,
+  authPasswordSignupSchema,
   authErrorResponseSchema,
   authGoogleCredentialSchema,
   authGoogleAuthorizeQuerySchema,
@@ -45,6 +51,11 @@ export type {
   AuthEmailCodeRequest,
   AuthEmailCodeResponse,
   AuthEmailCodeVerification,
+  AuthPhoneCodeRequest,
+  AuthPhoneCodeResponse,
+  AuthPhoneCodeVerification,
+  AuthPasswordSignIn,
+  AuthPasswordSignup,
   AuthGoogleCredential,
   AuthGoogleAuthorizeQuery,
   AuthGoogleCallbackQuery,

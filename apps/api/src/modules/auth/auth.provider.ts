@@ -1,4 +1,9 @@
-import { createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHmac,
+  createHash,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 import { CodeChallengeMethod, OAuth2Client } from "google-auth-library";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -38,8 +43,10 @@ export class GoogleProvider {
     private readonly clientId: string,
     clientSecret: string,
     redirectUri: string,
+    client?: OAuth2Client,
   ) {
-    this.client = new OAuth2Client(clientId, clientSecret, redirectUri);
+    this.client =
+      client ?? new OAuth2Client(clientId, clientSecret, redirectUri);
   }
 
   createAuthorizationUrl(
@@ -65,11 +72,19 @@ export class GoogleProvider {
   ): Promise<GoogleIdentity> {
     const { tokens } = await this.client.getToken({ code, codeVerifier });
     if (!tokens.id_token) {
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be completed.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be completed.",
+      );
     }
     const identity = await this.verifyIdentityToken(tokens.id_token);
     if (identity.nonce !== expectedNonce) {
-      throw new AppError(401, "google_auth_failed", "Google sign-in could not be completed.");
+      throw new AppError(
+        401,
+        "google_auth_failed",
+        "Google sign-in could not be completed.",
+      );
     }
     return identity;
   }
@@ -130,12 +145,64 @@ export class GoogleProvider {
   }
 }
 
+export class SmsProvider {
+  constructor(
+    private readonly config: AppConfig["sms"],
+    private readonly appName = "Vyasen",
+  ) {}
+
+  isAvailable(): boolean {
+    return Boolean(this.config);
+  }
+
+  async sendSignInCode(phone: string, code: string, expiresInMinutes: number) {
+    if (!this.config) {
+      throw new AppError(
+        503,
+        "sms_unavailable",
+        "Phone SMS sign-in is currently unavailable. Please try email instead.",
+      );
+    }
+
+    const credentials = Buffer.from(
+      `${this.config.accountSid}:${this.config.authToken}`,
+    ).toString("base64");
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${this.config.accountSid}/Messages.json`,
+      {
+        method: "POST",
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: phone,
+          From: this.config.from,
+          Body: `Your ${this.appName} sign-in code is ${code}. It expires in ${expiresInMinutes} minutes.`,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new AppError(
+        503,
+        "sms_delivery_unavailable",
+        "SMS delivery is temporarily unavailable.",
+      );
+    }
+  }
+}
+
 export class EmailProvider {
   private readonly transporter: Transporter | null;
 
   constructor(
     private readonly config: AppConfig["smtp"],
-    private readonly onDeliveryFailure?: (failure: EmailDeliveryFailure) => void,
+    private readonly appName = "Vyasen",
+    private readonly onDeliveryFailure?: (
+      failure: EmailDeliveryFailure,
+    ) => void,
   ) {
     this.transporter = config
       ? nodemailer.createTransport({
@@ -167,25 +234,24 @@ export class EmailProvider {
       await this.transporter.sendMail({
         from: this.config.from,
         to: email,
-        subject: "Your Vyasen sign-in code",
+        subject: `Your ${this.appName} sign-in code`,
         text: `Your sign-in code is ${code}. It expires in ${expiresInMinutes} minutes. If you did not request this code, you can ignore this email.`,
       });
     } catch (error) {
       const details =
         typeof error === "object" && error !== null
-          ? error as {
+          ? (error as {
               code?: unknown;
               command?: unknown;
               response?: unknown;
               responseCode?: unknown;
               syscall?: unknown;
-            }
+            })
           : {};
       this.onDeliveryFailure?.({
         errorName: error instanceof Error ? error.name : "unknown",
         code: typeof details.code === "string" ? details.code : null,
-        command:
-          typeof details.command === "string" ? details.command : null,
+        command: typeof details.command === "string" ? details.command : null,
         responseCode:
           typeof details.responseCode === "number"
             ? details.responseCode
@@ -193,14 +259,10 @@ export class EmailProvider {
         response:
           typeof details.response === "string"
             ? details.response
-                .replace(
-                  /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
-                  "[email]",
-                )
+                .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
                 .slice(0, 500)
             : null,
-        syscall:
-          typeof details.syscall === "string" ? details.syscall : null,
+        syscall: typeof details.syscall === "string" ? details.syscall : null,
       });
       throw error;
     }
@@ -238,7 +300,9 @@ export function createOAuthState(
   secret: string,
 ): string {
   const payload = Buffer.from(JSON.stringify(state)).toString("base64url");
-  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  const signature = createHmac("sha256", secret)
+    .update(payload)
+    .digest("base64url");
   return `${payload}.${signature}`;
 }
 
