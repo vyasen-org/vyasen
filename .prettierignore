@@ -1,9 +1,0 @@
-node_modules
-dist
-.turbo
-**/.docusaurus
-apps/docs/build
-pnpm-lock.yaml
-**/dist
-**/node_modules
-

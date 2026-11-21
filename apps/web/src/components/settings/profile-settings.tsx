@@ -14,7 +14,6 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthSessionQuery } from "@/services/auth";
-import { IdentitySettings } from "./identity-settings";
 
 function initials(name: string) {
   return name
@@ -83,7 +82,6 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-5 py-6">
-      <IdentitySettings key={user.id} userId={user.id} />
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.5fr)]">
         <section className="theme-surface-panel rounded-2xl p-5 sm:p-6">
           <div className="mb-5">
@@ -135,7 +133,8 @@ export function ProfileSettings() {
               )}
             </div>
             <p className="mt-6 max-w-xs text-xs leading-5 text-muted-foreground">
-              Edit your personal profile using the account form above.
+              Profile photo and public profile editing will be available in a
+              future update.
             </p>
           </div>
         </section>
@@ -144,7 +143,7 @@ export function ProfileSettings() {
           <div className="border-b border-border pb-5">
             <h2 className="text-sm font-semibold">Personal details</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Your current account preview and optional future profile fields.
+              Your current account identity and future profile options.
             </p>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">

@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
-
 import { sql, type Kysely, type Transaction } from "kysely";
 
-import type { AuthSession, AuthUser } from "@vyasen/contracts";
+import type {
+  AuthSession,
+  AuthUser,
+} from "@vyasen/contracts";
 import type { Database } from "@vyasen/database";
-import { AppError } from "../../errors";
 
 type Executor = Kysely<Database> | Transaction<Database>;
 
@@ -30,14 +30,6 @@ export interface SessionMetadata {
   deviceType: string | null;
   browser: string | null;
   os: string | null;
-}
-
-function normalizeDestinationValue(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function hashDestinationValue(value: string): string {
-  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
 }
 
 export function createAuthRepository(db: Executor) {
@@ -76,9 +68,9 @@ export function createAuthRepository(db: Executor) {
 
     async invalidateOpenCodes(executor: Executor, email: string, now: Date) {
       await executor
-        .updateTable("auth_challenges")
+        .updateTable("email_verification_codes")
         .set({ consumed_at: now })
-        .where("destination_hash", "=", hashDestinationValue(email))
+        .where("email", "=", email)
         .where("purpose", "=", "sign_in")
         .where("consumed_at", "is", null)
         .execute();
@@ -90,19 +82,17 @@ export function createAuthRepository(db: Executor) {
       codeHash: string,
       expiresAt: Date,
     ): Promise<string> {
-      const row = await executor
-        .insertInto("auth_challenges")
+      const code = await executor
+        .insertInto("email_verification_codes")
         .values({
-          channel: "email",
+          email,
+          code_hash: codeHash,
           purpose: "sign_in",
-          destination_hash: hashDestinationValue(email),
-          secret_hash: codeHash,
           expires_at: expiresAt,
-          attempt_count: 0,
         })
         .returning("id")
         .executeTakeFirstOrThrow();
-      return row.id;
+      return code.id;
     },
 
     async findEmailCodeForUpdate(
@@ -111,26 +101,25 @@ export function createAuthRepository(db: Executor) {
       email: string,
     ): Promise<EmailCodeRecord | undefined> {
       const row = await executor
-        .selectFrom("auth_challenges")
+        .selectFrom("email_verification_codes")
         .select([
           "id",
-          "destination_hash",
-          "secret_hash",
+          "email",
+          "code_hash",
           "expires_at",
           "consumed_at",
           "attempt_count",
         ])
         .where("id", "=", challengeId)
-        .where("destination_hash", "=", hashDestinationValue(email))
+        .where("email", "=", email)
         .where("purpose", "=", "sign_in")
         .forUpdate()
         .executeTakeFirst();
-
       return row
         ? {
             id: row.id,
-            email: normalizeDestinationValue(email),
-            codeHash: row.secret_hash,
+            email: row.email,
+            codeHash: row.code_hash,
             expiresAt: row.expires_at,
             consumedAt: row.consumed_at,
             attemptCount: row.attempt_count,
@@ -145,7 +134,7 @@ export function createAuthRepository(db: Executor) {
       consumedAt: Date | null,
     ) {
       await executor
-        .updateTable("auth_challenges")
+        .updateTable("email_verification_codes")
         .set({ attempt_count: attemptCount, consumed_at: consumedAt })
         .where("id", "=", id)
         .execute();
@@ -153,7 +142,7 @@ export function createAuthRepository(db: Executor) {
 
     async consumeEmailCode(executor: Executor, id: string, now: Date) {
       await executor
-        .updateTable("auth_challenges")
+        .updateTable("email_verification_codes")
         .set({ consumed_at: now })
         .where("id", "=", id)
         .where("consumed_at", "is", null)
@@ -162,150 +151,60 @@ export function createAuthRepository(db: Executor) {
 
     async consumeEmailCodeById(id: string, now: Date) {
       await db
-        .updateTable("auth_challenges")
+        .updateTable("email_verification_codes")
         .set({ consumed_at: now })
         .where("id", "=", id)
         .where("consumed_at", "is", null)
         .execute();
     },
 
-    async findUserByEmail(
-      executor: Executor,
-      email: string,
-    ): Promise<UserRecord | undefined> {
-      const emailIdentity = await executor
-        .selectFrom("auth_identities")
-        .select(["user_id", "provider_subject", "verified_at"])
-        .where("provider", "=", "email")
-        .where("provider_subject", "=", email)
-        .executeTakeFirst();
-
-      if (!emailIdentity) return undefined;
-
-      const user = await executor
+    async findUserByEmail(executor: Executor, email: string) {
+      return executor
         .selectFrom("users")
-        .leftJoin("personal_profiles", "personal_profiles.user_id", "users.id")
         .select([
-          "users.id",
-          "users.status",
-          "users.created_at",
-          "users.updated_at",
-          "users.last_login_at",
-          "personal_profiles.first_name",
-          "personal_profiles.middle_name",
-          "personal_profiles.surname",
-          "personal_profiles.image_url",
+          "id",
+          "email",
+          "email_verified_at",
+          "name",
+          "image",
+          "created_at",
+          "status",
         ])
-        .where("users.id", "=", emailIdentity.user_id)
+        .where("email", "=", email)
         .executeTakeFirst();
-
-      if (!user) return undefined;
-
-      return {
-        id: user.id,
-        email: emailIdentity.provider_subject,
-        email_verified_at: emailIdentity.verified_at,
-        name: composeDisplayName(
-          user.first_name,
-          user.middle_name,
-          user.surname,
-        ),
-        image: user.image_url,
-        created_at: user.created_at,
-        status: user.status,
-      };
     },
 
-    async findUserById(
-      executor: Executor,
-      userId: string,
-    ): Promise<UserRecord | undefined> {
-      const user = await executor
+    async findUserById(executor: Executor, userId: string) {
+      return executor
         .selectFrom("users")
-        .leftJoin("personal_profiles", "personal_profiles.user_id", "users.id")
         .select([
-          "users.id",
-          "users.status",
-          "users.created_at",
-          "users.updated_at",
-          "users.last_login_at",
-          "personal_profiles.first_name",
-          "personal_profiles.middle_name",
-          "personal_profiles.surname",
-          "personal_profiles.image_url",
+          "id",
+          "email",
+          "email_verified_at",
+          "name",
+          "image",
+          "created_at",
+          "status",
         ])
-        .where("users.id", "=", userId)
+        .where("id", "=", userId)
         .executeTakeFirst();
-
-      if (!user) return undefined;
-
-      const emailIdentity = await executor
-        .selectFrom("auth_identities")
-        .select(["provider_subject", "verified_at"])
-        .where("user_id", "=", userId)
-        .where("provider", "=", "email")
-        .executeTakeFirst();
-
-      return {
-        id: user.id,
-        email: emailIdentity?.provider_subject ?? "",
-        email_verified_at: emailIdentity?.verified_at ?? null,
-        name: composeDisplayName(
-          user.first_name,
-          user.middle_name,
-          user.surname,
-        ),
-        image: user.image_url,
-        created_at: user.created_at,
-        status: user.status,
-      };
     },
 
-    async findUserByIdForUpdate(
-      executor: Executor,
-      userId: string,
-    ): Promise<UserRecord | undefined> {
-      const user = await executor
+    async findUserByIdForUpdate(executor: Executor, userId: string) {
+      return executor
         .selectFrom("users")
-        .leftJoin("personal_profiles", "personal_profiles.user_id", "users.id")
         .select([
-          "users.id",
-          "users.status",
-          "users.created_at",
-          "users.updated_at",
-          "users.last_login_at",
-          "personal_profiles.first_name",
-          "personal_profiles.middle_name",
-          "personal_profiles.surname",
-          "personal_profiles.image_url",
+          "id",
+          "email",
+          "email_verified_at",
+          "name",
+          "image",
+          "created_at",
+          "status",
         ])
-        .where("users.id", "=", userId)
-        .forUpdate("users")
-        .executeTakeFirst();
-
-      if (!user) return undefined;
-
-      const emailIdentity = await executor
-        .selectFrom("auth_identities")
-        .select(["provider_subject", "verified_at"])
-        .where("user_id", "=", userId)
-        .where("provider", "=", "email")
+        .where("id", "=", userId)
         .forUpdate()
         .executeTakeFirst();
-
-      return {
-        id: user.id,
-        email: emailIdentity?.provider_subject ?? "",
-        email_verified_at: emailIdentity?.verified_at ?? null,
-        name: composeDisplayName(
-          user.first_name,
-          user.middle_name,
-          user.surname,
-        ),
-        image: user.image_url,
-        created_at: user.created_at,
-        status: user.status,
-      };
     },
 
     async insertUser(
@@ -316,92 +215,32 @@ export function createAuthRepository(db: Executor) {
         name: string | null;
         image: string | null;
       },
-    ): Promise<UserRecord | undefined> {
-      await sql`select pg_advisory_xact_lock(hashtextextended(${"contact:email:" + values.email}, 0))`.execute(
-        executor,
-      );
-      const contactOwner = await executor
-        .selectFrom("user_contacts")
-        .select("id")
-        .where("type", "=", "email")
-        .where("normalized_value", "=", values.email)
-        .executeTakeFirst();
-      if (contactOwner)
-        throw new AppError(
-          409,
-          "identity_link_required",
-          "Sign in to the existing account before linking this method.",
-        );
-      const created = await executor
+    ) {
+      return executor
         .insertInto("users")
         .values({
-          status: "active",
+          email: values.email,
+          email_verified_at: values.emailVerifiedAt,
+          name: values.name,
+          image: values.image,
           last_login_at: values.emailVerifiedAt,
-          updated_at: values.emailVerifiedAt,
         })
-        .returning([
-          "id",
-          "status",
-          "created_at",
-          "updated_at",
-          "last_login_at",
-        ])
+        .onConflict((conflict) => conflict.column("email").doNothing())
+        .returning(["id", "email"])
         .executeTakeFirst();
-
-      if (!created) return undefined;
-
-      const nameParts = values.name?.trim().split(/\s+/) ?? [];
-      const firstName = nameParts[0]?.slice(0, 100) ?? null;
-      const lastName = nameParts.slice(1).join(" ").slice(0, 100) || null;
-
-      await executor
-        .insertInto("personal_profiles")
-        .values({
-          user_id: created.id,
-          first_name: firstName,
-          surname: lastName,
-          image_url: values.image,
-        })
-        .execute();
-
-      await executor
-        .insertInto("user_contacts")
-        .values({
-          user_id: created.id,
-          type: "email",
-          normalized_value: values.email,
-          verified_at: values.emailVerifiedAt,
-          is_primary: true,
-        })
-        .onConflict((conflict) =>
-          conflict.columns(["user_id", "type", "normalized_value"]).doNothing(),
-        )
-        .execute();
-
-      return {
-        id: created.id,
-        email: values.email,
-        email_verified_at: values.emailVerifiedAt,
-        name: composeDisplayName(firstName, null, lastName),
-        image: values.image,
-        created_at: created.created_at,
-        status: created.status,
-      };
     },
 
     async markEmailVerified(executor: Executor, userId: string, now: Date) {
       await executor
-        .updateTable("auth_identities")
-        .set({ verified_at: now, last_used_at: now })
-        .where("user_id", "=", userId)
-        .where("provider", "=", "email")
-        .execute();
-
-      await executor
-        .updateTable("user_contacts")
-        .set({ verified_at: now, updated_at: now })
-        .where("user_id", "=", userId)
-        .where("type", "=", "email")
+        .updateTable("users")
+        .set((expression) => ({
+          email_verified_at: expression.fn.coalesce(
+            "email_verified_at",
+            expression.val(now),
+          ),
+          updated_at: now,
+        }))
+        .where("id", "=", userId)
         .execute();
     },
 
@@ -413,20 +252,10 @@ export function createAuthRepository(db: Executor) {
         .execute();
     },
 
-    async findIdentity(
-      executor: Executor,
-      provider: "email" | "phone" | "google",
-      subject: string,
-    ) {
+    async findIdentity(executor: Executor, provider: "email" | "google", subject: string) {
       return executor
         .selectFrom("auth_identities")
-        .select([
-          "id",
-          "user_id",
-          "provider",
-          "provider_subject",
-          "verified_at",
-        ])
+        .select(["id", "user_id", "provider", "provider_subject"])
         .where("provider", "=", provider)
         .where("provider_subject", "=", subject)
         .executeTakeFirst();
@@ -435,7 +264,7 @@ export function createAuthRepository(db: Executor) {
     async findUserProviderIdentity(
       executor: Executor,
       userId: string,
-      provider: "email" | "phone" | "google",
+      provider: "email" | "google",
     ) {
       return executor
         .selectFrom("auth_identities")
@@ -448,7 +277,7 @@ export function createAuthRepository(db: Executor) {
     async insertIdentity(
       executor: Executor,
       userId: string,
-      provider: "email" | "phone" | "google",
+      provider: "email" | "google",
       subject: string,
     ) {
       return executor
@@ -457,7 +286,6 @@ export function createAuthRepository(db: Executor) {
           user_id: userId,
           provider,
           provider_subject: subject,
-          verified_at: new Date(),
         })
         .onConflict((conflict) =>
           conflict.columns(["provider", "provider_subject"]).doNothing(),
@@ -511,12 +339,6 @@ export function createAuthRepository(db: Executor) {
             sessionsToRevoke.map((session) => session.id),
           )
           .execute();
-        await this.insertSecurityEvent(
-          executor,
-          values.userId,
-          "sessions_revoked_limit",
-          null,
-        );
       }
 
       const session = await executor
@@ -527,25 +349,20 @@ export function createAuthRepository(db: Executor) {
           ip_address: values.metadata.ipAddress,
           user_agent: values.metadata.userAgent,
           device_name: values.metadata.deviceName,
+          device_type: values.metadata.deviceType,
+          browser: values.metadata.browser,
+          os: values.metadata.os,
           created_at: values.now,
           last_active_at: values.now,
           expires_at: values.expiresAt,
         })
         .returning("id")
         .executeTakeFirstOrThrow();
-      await executor
-        .insertInto("auth_security_events")
-        .values({
-          user_id: values.userId,
-          event_type: "session_created",
-          metadata: {},
-        })
-        .execute();
       return session.id;
     },
 
-    async findActiveSession(executor: Executor, tokenHash: string, now: Date) {
-      return executor
+    async findActiveSession(tokenHash: string, now: Date) {
+      return db
         .selectFrom("sessions")
         .select(["id", "user_id", "last_active_at"])
         .where("token_hash", "=", tokenHash)
@@ -554,8 +371,8 @@ export function createAuthRepository(db: Executor) {
         .executeTakeFirst();
     },
 
-    async updateSessionActivity(executor: Executor, id: string, now: Date) {
-      await executor
+    async updateSessionActivity(id: string, now: Date) {
+      await db
         .updateTable("sessions")
         .set({ last_active_at: now })
         .where("id", "=", id)
@@ -563,20 +380,18 @@ export function createAuthRepository(db: Executor) {
         .execute();
     },
 
-    async listSessions(
-      executor: Executor,
-      userId: string,
-      now: Date,
-    ): Promise<AuthSession[]> {
-      const rows = await executor
+    async listSessions(userId: string, now: Date): Promise<AuthSession[]> {
+      const rows = await db
         .selectFrom("sessions")
         .select([
           "id",
           "device_name",
+          "device_type",
+          "browser",
+          "os",
           "created_at",
           "last_active_at",
           "expires_at",
-          "user_agent",
         ])
         .where("user_id", "=", userId)
         .where("revoked_at", "is", null)
@@ -584,13 +399,12 @@ export function createAuthRepository(db: Executor) {
         .orderBy("last_active_at", "desc")
         .limit(5)
         .execute();
-
       return rows.map((row) => ({
         id: row.id,
         deviceName: row.device_name,
-        deviceType: null,
-        browser: null,
-        os: null,
+        deviceType: row.device_type,
+        browser: row.browser,
+        os: row.os,
         createdAt: row.created_at.toISOString(),
         lastActiveAt: row.last_active_at.toISOString(),
         expiresAt: row.expires_at.toISOString(),
@@ -598,13 +412,8 @@ export function createAuthRepository(db: Executor) {
       }));
     },
 
-    async revokeSession(
-      executor: Executor,
-      userId: string,
-      sessionId: string,
-      now: Date,
-    ) {
-      const revoked = await executor
+    async revokeSession(userId: string, sessionId: string, now: Date) {
+      return db
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("id", "=", sessionId)
@@ -612,61 +421,28 @@ export function createAuthRepository(db: Executor) {
         .where("revoked_at", "is", null)
         .returning("id")
         .executeTakeFirst();
-      if (revoked)
-        await this.insertSecurityEvent(
-          executor,
-          userId,
-          "session_revoked",
-          null,
-        );
-      return revoked;
     },
 
-    async revokeAllSessions(executor: Executor, userId: string, now: Date) {
-      const revoked = await executor
+    async revokeAllSessions(userId: string, now: Date) {
+      await db
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("user_id", "=", userId)
         .where("revoked_at", "is", null)
-        .returning("id")
         .execute();
-      if (revoked.length)
-        await this.insertSecurityEvent(
-          executor,
-          userId,
-          "sessions_revoked_all",
-          null,
-        );
     },
 
-    async revokeSessionByToken(
-      executor: Executor,
-      tokenHash: string,
-      now: Date,
-    ) {
-      const revoked = await executor
+    async revokeSessionByToken(tokenHash: string, now: Date) {
+      await db
         .updateTable("sessions")
         .set({ revoked_at: now })
         .where("token_hash", "=", tokenHash)
         .where("revoked_at", "is", null)
-        .returning("user_id")
-        .executeTakeFirst();
-      if (revoked)
-        await this.insertSecurityEvent(
-          executor,
-          revoked.user_id,
-          "session_revoked",
-          null,
-        );
+        .execute();
     },
 
-    async insertGoogleNonce(
-      executor: Executor,
-      nonceHash: string,
-      now: Date,
-      expiresAt: Date,
-    ) {
-      await executor
+    async insertGoogleNonce(nonceHash: string, now: Date, expiresAt: Date) {
+      await db
         .insertInto("auth_nonces")
         .values({
           nonce_hash: nonceHash,
@@ -694,34 +470,34 @@ export function createAuthRepository(db: Executor) {
       return Boolean(nonce);
     },
 
-    async cleanupExpiredData(executor: Executor, now: Date) {
+    async cleanupExpiredData(now: Date) {
       await sql`
         WITH expired AS (
           SELECT id
-          FROM auth_challenges
+          FROM email_verification_codes
           WHERE expires_at < ${now}
              OR (consumed_at < ${new Date(now.getTime() - 24 * 60 * 60 * 1000)})
           ORDER BY expires_at
           LIMIT 5000
         )
-        DELETE FROM auth_challenges AS challenges
+        DELETE FROM email_verification_codes AS codes
         USING expired
-        WHERE challenges.id = expired.id
-      `.execute(executor);
+        WHERE codes.id = expired.id
+      `.execute(db);
 
       await sql`
         WITH expired AS (
           SELECT id
           FROM sessions
-          WHERE expires_at < ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)}
-             OR revoked_at < ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)}
+          WHERE (expires_at < ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)})
+             OR (revoked_at < ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)})
           ORDER BY expires_at
           LIMIT 5000
         )
         DELETE FROM sessions
         USING expired
         WHERE sessions.id = expired.id
-      `.execute(executor);
+      `.execute(db);
 
       await sql`
         WITH expired AS (
@@ -734,7 +510,7 @@ export function createAuthRepository(db: Executor) {
         DELETE FROM auth_rate_limits AS limits
         USING expired
         WHERE limits.bucket_hash = expired.bucket_hash
-      `.execute(executor);
+      `.execute(db);
 
       await sql`
         WITH expired AS (
@@ -748,36 +524,9 @@ export function createAuthRepository(db: Executor) {
         DELETE FROM auth_nonces
         USING expired
         WHERE auth_nonces.nonce_hash = expired.nonce_hash
-      `.execute(executor);
-    },
-
-    async insertSecurityEvent(
-      executor: Executor,
-      userId: string | null,
-      eventType: string,
-      identityId: string | null,
-      metadata: Record<string, unknown> = {},
-    ) {
-      await executor
-        .insertInto("auth_security_events")
-        .values({
-          user_id: userId,
-          event_type: eventType,
-          identity_id: identityId,
-          metadata,
-        })
-        .execute();
+      `.execute(db);
     },
   };
-}
-
-function composeDisplayName(
-  firstName: string | null | undefined,
-  middleName: string | null | undefined,
-  surname: string | null | undefined,
-): string | null {
-  const parts = [firstName, middleName, surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 export function toAuthUser(row: {
@@ -798,16 +547,9 @@ export function toAuthUser(row: {
   };
 }
 
-export type UserRecord = {
-  id: string;
-  email: string;
-  email_verified_at: Date | null;
-  name: string | null;
-  image: string | null;
-  created_at: Date;
-  status: "active" | "disabled";
-};
-
+export type UserRecord = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof createAuthRepository>["findUserByEmail"]>>
+>;
 export type IdentityRecord = NonNullable<
   Awaited<ReturnType<ReturnType<typeof createAuthRepository>["findIdentity"]>>
 >;

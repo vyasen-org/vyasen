@@ -3,7 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { ApiError } from "@/lib/api-client";
 import { useAuthSessionQuery, useLogoutMutation } from "@/services/auth";
 import { CreditCard, LogOut, ShieldAlert, Trash2 } from "lucide-react";
-import { SessionSettings } from "./session-settings";
 
 function AccountSection({
   icon: Icon,
@@ -78,7 +77,6 @@ export function AccountSettings() {
 
   return (
     <div className="space-y-4 py-5">
-      <SessionSettings />
       <header>
         <h2 className="text-2xl font-semibold tracking-tight">Account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -125,8 +123,7 @@ export function AccountSettings() {
           <div>
             <p className="text-sm font-medium">Need to deactivate?</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Contact your institution administrator for help with account
-              access.
+              Contact your school administrator for help with account access.
             </p>
           </div>
           <button

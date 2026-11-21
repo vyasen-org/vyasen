@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronDown, LogOut, Settings2, UserRound } from "lucide-react";
-import type { WorkspaceRole } from "@vyasen/contracts";
+import {
+  Check,
+  ChevronDown,
+  LogOut,
+  Settings2,
+  UserRound,
+} from "lucide-react";
+import type { SchoolRole } from "@vyasen/contracts";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,7 +21,7 @@ import {
 import { ApiError } from "@/lib/api-client";
 import { useAuthSessionQuery, useLogoutMutation } from "@/services/auth";
 
-const roleLabels: Record<WorkspaceRole, string> = {
+const roleLabels: Record<SchoolRole, string> = {
   admin: "Administrator",
   principal: "Principal",
   teacher: "Teacher",
@@ -24,8 +30,8 @@ const roleLabels: Record<WorkspaceRole, string> = {
 };
 
 interface ProfileMenuProps {
-  role: WorkspaceRole;
-  onRoleChange: (role: WorkspaceRole) => void;
+  role: SchoolRole;
+  onRoleChange: (role: SchoolRole) => void;
   onOpenChange?: (open: boolean) => void;
   compact?: boolean;
 }
@@ -138,7 +144,7 @@ export function ProfileMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Preview role</DropdownMenuLabel>
-        {(Object.keys(roleLabels) as WorkspaceRole[]).map((nextRole) => (
+        {(Object.keys(roleLabels) as SchoolRole[]).map((nextRole) => (
           <DropdownMenuItem
             key={nextRole}
             onSelect={() => onRoleChange(nextRole)}

@@ -18,7 +18,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import type { WorkspaceRole } from "@vyasen/contracts";
+import type { SchoolRole } from "@vyasen/contracts";
 
 import { roleLabels, roleNavigation } from "@/components/navigation-config";
 import { ElasticScroller } from "@/components/elastic-scroller";
@@ -41,7 +41,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTheme } from "@/providers/theme-provider";
-import { appName } from "@/lib/app-config";
 
 type SidebarPosition = "left" | "right" | "top" | "bottom";
 type FloatingButtonPosition = { left: number; top: number };
@@ -69,9 +68,9 @@ function SidebarContents({
   onCloseHidden: () => void;
   onNavigate?: () => void;
   onProfileMenuOpen: () => void;
-  onRoleChange: (role: WorkspaceRole) => void;
+  onRoleChange: (role: SchoolRole) => void;
   onToggleCollapsed: () => void;
-  role: WorkspaceRole;
+  role: SchoolRole;
   position: SidebarPosition;
 }) {
   const pathname = useRouterState({
@@ -100,11 +99,7 @@ function SidebarContents({
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-lg shadow-accent/20">
             {collapsed && !horizontal ? (
-              <span className="text-2xl font-bold leading-none">
-                {String.fromCodePoint(
-                  appName.codePointAt(0) ?? 0,
-                ).toUpperCase()}
-              </span>
+              <span className="text-2xl font-bold leading-none">S</span>
             ) : (
               <GraduationCap size={22} />
             )}
@@ -112,16 +107,11 @@ function SidebarContents({
           {(!collapsed || horizontal) && (
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold tracking-tight">
-                <img
-                  src="/static/app-icon.jpg"
-                  alt={appName}
-                  className="h-6 w-6 mr-2 inline-block"
-                />{" "}
-                {appName}
+                <img src="/static/app-icon.jpg" alt="Vyasen" className="h-6 w-6 mr-2 inline-block"/> Vyasen
               </span>
               {!horizontal && (hiddenMode || canToggleCollapsed) && (
                 <span className="block text-xs text-muted-foreground">
-                  Institution workspace
+                  School workspace
                 </span>
               )}
             </span>
@@ -209,16 +199,17 @@ function SidebarContents({
                       ? preferences.sidebarIconColor
                       : undefined,
               } satisfies CSSProperties;
-              const iconClassName = `shrink-0 ${
-                collapsed ? "size-6" : "size-5"
-              } ${
-                preferences.sidebarIconStyle === "multicolor" ||
-                preferences.sidebarIconColorMode === "custom"
-                  ? ""
-                  : preferences.sidebarIconColorMode === "theme" || isActive
-                    ? "text-accent"
-                    : "text-muted-foreground"
-              }`;
+              const iconClassName =
+                `shrink-0 ${
+                  collapsed ? "size-6" : "size-5"
+                } ${
+                  preferences.sidebarIconStyle === "multicolor" ||
+                  preferences.sidebarIconColorMode === "custom"
+                    ? ""
+                    : preferences.sidebarIconColorMode === "theme" || isActive
+                      ? "text-accent"
+                      : "text-muted-foreground"
+                }`;
               const labelClass = horizontal
                 ? "inline"
                 : collapsed
@@ -347,7 +338,9 @@ function SidebarContents({
               } ${pathname.startsWith("/settings") ? "active" : ""}`}
             >
               <Settings className="size-5 shrink-0" />
-              {!collapsed && !horizontal && <span>Settings</span>}
+              {!collapsed && !horizontal && (
+                <span>Settings</span>
+              )}
             </Link>
           </TooltipTrigger>
           {(collapsed || horizontal) && (
@@ -373,16 +366,16 @@ function SidebarContents({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { preferences, updatePreference } = useTheme();
-  const [role, setRole] = useState<WorkspaceRole>("admin");
+  const [role, setRole] = useState<SchoolRole>("admin");
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [hiddenSidebarOpen, setHiddenSidebarOpen] = useState(false);
   const [tabletSidebarExpanded, setTabletSidebarExpanded] = useState(false);
   const [dockHidden, setDockHidden] = useState(false);
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window === "undefined" ? 1024 : window.innerWidth,
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window === "undefined" ? 1024 : window.innerWidth),
   );
-  const [viewportHeight, setViewportHeight] = useState(() =>
-    typeof window === "undefined" ? 768 : window.innerHeight,
+  const [viewportHeight, setViewportHeight] = useState(
+    () => (typeof window === "undefined" ? 768 : window.innerHeight),
   );
   const [resizingWidth, setResizingWidth] = useState<number | null>(null);
   const resizeStart = useRef<{ pointerX: number; width: number } | null>(null);
@@ -448,19 +441,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", updateViewportSize);
   }, []);
 
-  // Reset sidebar visibility state whenever the layout configuration changes
-  // (screen size, position, or behavior). Using a ref-during-render comparison
-  // avoids a double-render that set-state-in-effect would cause.
-  const layoutKey = `${String(isSmallScreen)}-${String(isTabletWidth)}-${position}-${sidebarBehavior}`;
-  const prevLayoutKey = useRef(layoutKey);
-  if (prevLayoutKey.current !== layoutKey) {
-    prevLayoutKey.current = layoutKey;
+  useEffect(() => {
     setSidebarVisible(true);
     setHiddenSidebarOpen(false);
     setTabletSidebarExpanded(false);
     setDockHidden(false);
     previousScrollTop.current = 0;
-  }
+  }, [isSmallScreen, isTabletWidth, position, sidebarBehavior]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -537,12 +524,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? `flex-row items-center border-r-0 px-2 sm:px-4 ${
           position === "top" ? "border-b" : "border-b-0 border-t"
         }`
-      : `flex-col ${position === "left" ? "border-r" : "border-r-0 border-l"}`
+      : `flex-col ${
+          position === "left" ? "border-r" : "border-r-0 border-l"
+        }`
   } ${hiddenMode ? "shadow-2xl" : ""} ${hiddenTransform} ${
     dockHidden ? "pointer-events-none" : ""
-  } ${hiddenMode && !hiddenSidebarOpen ? "pointer-events-none" : ""}`;
+  } ${
+    hiddenMode && !hiddenSidebarOpen ? "pointer-events-none" : ""
+  }`;
   const reservedSidebarWidth =
-    hiddenMode || collapsed || tabletCollapsed ? 64 : sidebarWidth;
+    hiddenMode || collapsed || tabletCollapsed
+      ? 64
+      : sidebarWidth;
   const contentPositionStyle: CSSProperties = horizontal
     ? {}
     : position === "left"
@@ -555,10 +548,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         : "pb-16"
       : ""
     : "";
-  const frameHeightClass =
-    horizontal && sidebarVisible && !dockHidden
-      ? "h-[calc(100dvh-5rem)]"
-      : "h-[calc(100dvh-1rem)]";
+  const frameHeightClass = horizontal && sidebarVisible && !dockHidden
+    ? "h-[calc(100dvh-5rem)]"
+    : "h-[calc(100dvh-1rem)]";
 
   const maxFloatingButtonLeft = Math.max(
     FLOATING_BUTTON_MARGIN,
@@ -569,16 +561,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     viewportHeight - FLOATING_BUTTON_SIZE - FLOATING_BUTTON_MARGIN,
   );
   const savedFloatingButtonPosition = preferences.floatingSidebarButtonPosition;
-  const floatingButtonPosition = draggingFloatingButtonPosition ?? {
-    left:
-      FLOATING_BUTTON_MARGIN +
-      (maxFloatingButtonLeft - FLOATING_BUTTON_MARGIN) *
-        savedFloatingButtonPosition.x,
-    top:
-      FLOATING_BUTTON_MARGIN +
-      (maxFloatingButtonTop - FLOATING_BUTTON_MARGIN) *
-        savedFloatingButtonPosition.y,
-  };
+  const floatingButtonPosition =
+    draggingFloatingButtonPosition ?? {
+      left:
+        FLOATING_BUTTON_MARGIN +
+        (maxFloatingButtonLeft - FLOATING_BUTTON_MARGIN) *
+          savedFloatingButtonPosition.x,
+      top:
+        FLOATING_BUTTON_MARGIN +
+        (maxFloatingButtonTop - FLOATING_BUTTON_MARGIN) *
+          savedFloatingButtonPosition.y,
+    };
   const horizontalDockAutoHidden =
     horizontal &&
     sidebarBehavior === "hide-on-scroll" &&
@@ -682,7 +675,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         ? event.clientX - start.pointerX
         : start.pointerX - event.clientX;
     setResizingWidth(
-      Math.max(64, Math.min(maxSidebarWidth, Math.round(start.width + delta))),
+      Math.max(
+        64,
+        Math.min(maxSidebarWidth, Math.round(start.width + delta)),
+      ),
     );
   }
 
@@ -725,7 +721,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     applySidebarWidth(
       Math.max(
         64,
-        Math.min(maxSidebarWidth, baseWidth + positionDirection * step),
+        Math.min(
+          maxSidebarWidth,
+          baseWidth + positionDirection * step,
+        ),
       ),
     );
   }
@@ -798,8 +797,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {position !== "bottom" && (
           <Sidebar
-            id="workspace-navigation"
-            aria-label="Workspace navigation"
+            id="school-workspace-navigation"
+            aria-label="School workspace navigation"
             aria-hidden={!dockIsVisible || dockHidden}
             inert={!dockIsVisible || dockHidden}
             onPointerLeave={() => {
@@ -888,8 +887,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {position === "bottom" && (
           <Sidebar
-            id="workspace-navigation"
-            aria-label="Workspace navigation"
+            id="school-workspace-navigation"
+            aria-label="School workspace navigation"
             aria-hidden={!dockIsVisible || dockHidden}
             inert={!dockIsVisible || dockHidden}
             onPointerLeave={() => {
@@ -917,24 +916,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           !sidebarVisible &&
           !horizontalDockAutoHidden &&
           !preferences.floatingSidebarButtonEnabled && (
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Show sidebar"
-              aria-controls="workspace-navigation"
-              className={`fixed z-50 rounded-xl border border-border bg-surface shadow-lg ${
-                position === "top"
-                  ? "left-1/2 top-0 -translate-x-1/2"
-                  : "bottom-0 left-1/2 -translate-x-1/2"
-              }`}
-              onClick={() => {
-                setSidebarVisible(true);
-                setDockHidden(false);
-              }}
-            >
-              <Menu size={17} />
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-label="Show sidebar"
+            aria-controls="school-workspace-navigation"
+            className={`fixed z-50 rounded-xl border border-border bg-surface shadow-lg ${
+              position === "top"
+                ? "left-1/2 top-0 -translate-x-1/2"
+                : "bottom-0 left-1/2 -translate-x-1/2"
+            }`}
+            onClick={() => {
+              setSidebarVisible(true);
+              setDockHidden(false);
+            }}
+          >
+            <Menu size={17} />
+          </Button>
+        )}
 
         {floatingButtonVisible && (
           <Button
@@ -942,7 +941,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             variant="secondary"
             size="icon"
             aria-label={horizontal ? "Show sidebar" : "Open sidebar"}
-            aria-controls="workspace-navigation"
+            aria-controls="school-workspace-navigation"
             className="fixed z-50 touch-none rounded-full border border-border bg-surface shadow-xl"
             style={{
               left: floatingButtonPosition.left,

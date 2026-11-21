@@ -1,6 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { identityKeys } from "./identity.service";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   authKeys,
@@ -10,32 +8,18 @@ import {
 } from "./auth.service";
 
 export function useAuthSessionQuery() {
-  const client = useQueryClient();
-  const session = useQuery({
+  return useQuery({
     queryKey: authKeys.session(),
     queryFn: ({ signal }) => getAuthSession(signal),
     retry: false,
   });
-  useEffect(() => {
-    if (session.isSuccess && !session.data) {
-      void client.cancelQueries({ queryKey: authKeys.sessions() }).then(() => {
-        client.removeQueries({ queryKey: authKeys.sessions() });
-      });
-      void client.cancelQueries({ queryKey: identityKeys.all }).then(() => {
-        client.removeQueries({ queryKey: identityKeys.all });
-      });
-    }
-  }, [client, session.isSuccess, session.data]);
-  return session;
 }
 
 export function useAuthSessionsQuery(enabled = true) {
-  const session = useAuthSessionQuery();
-  const userId = session.data?.user.id;
   return useQuery({
-    queryKey: authKeys.sessions(userId),
+    queryKey: authKeys.sessions(),
     queryFn: ({ signal }) => getAuthSessions(signal),
-    enabled: enabled && Boolean(userId),
+    enabled,
   });
 }
 
@@ -44,9 +28,8 @@ export function useGoogleNonceQuery(enabled: boolean) {
     queryKey: authKeys.googleNonce(),
     queryFn: ({ signal }) => getGoogleNonce(signal),
     enabled,
-    staleTime: 4 * 60 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 0,
     retry: false,
-    refetchOnWindowFocus: false,
   });
 }

@@ -2,11 +2,7 @@ node_modules/
 dist/
 .turbo/
 .vite/
-.docusaurus/
-apps/docs/build/
 coverage/
-apps/web/test-results/
-apps/web/playwright-report/
 
 .env
 .env.*
@@ -15,17 +11,7 @@ apps/web/playwright-report/
 *.log
 *.tsbuildinfo
 
-# Keep the repository's contributor and coding-agent instructions versioned.
-!AGENTS.md
-!apps/api/AGENTS.md
-!apps/web/AGENTS.md
-
-# Internal operational runbooks, tunnel configs & architecture guides
-docs/operations.md
-ngrok.yml
-authentication-*.md
-*-guide.md
+AGENTS.md
 
 .env.example
 env.example
-

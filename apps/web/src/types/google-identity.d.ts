@@ -13,7 +13,6 @@ declare global {
             cancel_on_tap_outside?: boolean;
           }) => void;
           prompt: () => void;
-          cancel?: () => void;
         };
       };
     };

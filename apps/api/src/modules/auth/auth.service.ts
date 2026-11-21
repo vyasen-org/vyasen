@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import type { Kysely } from "kysely";
-import { IdentityService } from "./identity.service";
-import { identityRepository } from "./identity.repository";
 
-import type { AuthSession, AuthUser } from "@vyasen/contracts";
+import type {
+  AuthSession,
+  AuthUser,
+} from "@vyasen/contracts";
 import type { Database } from "@vyasen/database";
 
 import type { AppConfig } from "../../config";
@@ -16,9 +17,10 @@ import {
   EmailProvider,
   GoogleProvider,
   hashRateLimitKey,
+  hashesMatch,
   hashSessionToken,
+  hashVerificationCode,
   readOAuthState,
-  SmsProvider,
   type GoogleIdentity,
   type SignedOAuthState,
 } from "./auth.provider";
@@ -29,16 +31,19 @@ import {
   type UserRecord,
 } from "./auth.repository";
 
+const verificationCodeLifetimeMs = 10 * 60 * 1000;
+const emailCodeResendCooldownMs = 2 * 60 * 1000;
 const sessionLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 const oneTapNonceLifetimeMs = 5 * 60 * 1000;
 const oauthStateLifetimeMs = 10 * 60 * 1000;
+const genericCodeMessage =
+  "If this email can receive a sign-in code, one has been sent.";
 
 interface AuthServiceDependencies {
   db: Kysely<Database>;
   config: AppConfig;
   emailProvider: EmailProvider;
   googleProvider: GoogleProvider | null;
-  smsProvider?: SmsProvider | null;
 }
 
 interface AuthenticatedSession {
@@ -59,11 +64,45 @@ export class AuthService {
   }
 
   async requestEmailCode(emailInput: string, ipAddress: string) {
-    return this.identityService().issue(
-      { destination: emailInput, channel: "email", purpose: "sign_in" },
-      ipAddress,
-      null,
+    const email = normalizeEmail(emailInput);
+    await this.enforceRateLimit(`email-code-ip:${ipAddress}`, 20, 60 * 60 * 1000);
+    await this.enforceRateLimit(`email-code-email:${email}`, 5, 60 * 60 * 1000);
+    await this.enforceRateLimit(
+      `email-code-cooldown:${email}`,
+      1,
+      emailCodeResendCooldownMs,
     );
+
+    const now = new Date();
+    const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const expiresAt = new Date(now.getTime() + verificationCodeLifetimeMs);
+    const codeHash = hashVerificationCode(
+      code,
+      this.dependencies.config.authCodeHashSecret,
+    );
+
+    const challengeId = await this.dependencies.db.transaction().execute(async (trx) => {
+      const repository = createAuthRepository(trx);
+      await repository.invalidateOpenCodes(trx, email, now);
+      return repository.insertEmailCode(trx, email, codeHash, expiresAt);
+    });
+
+    try {
+      await this.dependencies.emailProvider.sendSignInCode(email, code, 10);
+    } catch {
+      await this.repository.consumeEmailCodeById(challengeId, new Date());
+      throw new AppError(
+        503,
+        "email_delivery_unavailable",
+        "Email sign-in is temporarily unavailable. Please try again later.",
+      );
+    }
+
+    return {
+      challengeId,
+      expiresInSeconds: verificationCodeLifetimeMs / 1000,
+      message: genericCodeMessage,
+    };
   }
 
   async verifyEmailCode(
@@ -72,28 +111,141 @@ export class AuthService {
     code: string,
     metadata: SessionMetadata,
   ): Promise<AuthenticatedSession> {
-    const result = await this.identityService().verify(
-      {
-        destination: emailInput,
-        channel: "email",
-        purpose: "sign_in",
-        challengeId,
-        code,
-      },
-      metadata,
-      null,
+    const email = normalizeEmail(emailInput);
+    await this.enforceRateLimit(
+      `email-verify-ip:${metadata.ipAddress ?? "unknown"}`,
+      30,
+      15 * 60 * 1000,
     );
-    if (!("token" in result)) throw invalidCodeError();
-    return result;
-  }
+    await this.enforceRateLimit(`email-verify-email:${email}`, 20, 60 * 60 * 1000);
 
-  private identityService() {
-    return new IdentityService(
-      this.dependencies.db,
-      this.dependencies.config,
-      this.dependencies.emailProvider,
-      this.dependencies.smsProvider ?? new SmsProvider(null),
-    );
+    const now = new Date();
+    const sessionToken = createSessionToken();
+    const outcome = await this.dependencies.db.transaction().execute(async (trx) => {
+      const repository = createAuthRepository(trx);
+      const verification = await repository.findEmailCodeForUpdate(
+        trx,
+        challengeId,
+        email,
+      );
+
+      if (
+        !verification ||
+        verification.consumedAt ||
+        verification.expiresAt <= now ||
+        verification.attemptCount >= 5
+      ) {
+        return { kind: "invalid" } as const;
+      }
+
+      const submittedHash = hashVerificationCode(
+        code,
+        this.dependencies.config.authCodeHashSecret,
+      );
+      if (!hashesMatch(verification.codeHash, submittedHash)) {
+        const nextAttemptCount = verification.attemptCount + 1;
+        await repository.updateEmailCodeAttempt(
+          trx,
+          verification.id,
+          nextAttemptCount,
+          nextAttemptCount >= 5 ? now : null,
+        );
+        return { kind: "invalid" } as const;
+      }
+
+      await repository.consumeEmailCode(trx, verification.id, now);
+
+      let user = await repository.findUserByEmail(trx, email);
+      if (!user) {
+        const created = await repository.insertUser(trx, {
+          email,
+          emailVerifiedAt: now,
+          name: null,
+          image: null,
+        });
+        user = created
+          ? await repository.findUserById(trx, created.id)
+          : await repository.findUserByEmail(trx, email);
+      }
+
+      if (!user) {
+        throw new Error("A verified email user could not be loaded.");
+      }
+      if (user.status !== "active") {
+        return { kind: "account_disabled" } as const;
+      }
+
+      const existingIdentity = await repository.findIdentity(trx, "email", email);
+      if (existingIdentity && existingIdentity.user_id !== user.id) {
+        return { kind: "identity_conflict" } as const;
+      }
+
+      if (!existingIdentity) {
+        const linkedEmail = await repository.findUserProviderIdentity(
+          trx,
+          user.id,
+          "email",
+        );
+        if (linkedEmail && linkedEmail.provider_subject !== email) {
+          return { kind: "identity_conflict" } as const;
+        }
+        const insertedIdentity = await repository.insertIdentity(
+          trx,
+          user.id,
+          "email",
+          email,
+        );
+        if (!insertedIdentity) {
+          const concurrentIdentity = await repository.findIdentity(
+            trx,
+            "email",
+            email,
+          );
+          if (concurrentIdentity?.user_id !== user.id) {
+            return { kind: "identity_conflict" } as const;
+          }
+        }
+      }
+
+      await repository.markEmailVerified(trx, user.id, now);
+      await repository.updateLoginTime(trx, user.id, now);
+      const sessionId = await repository.createSession(trx, {
+        userId: user.id,
+        tokenHash: hashSessionToken(sessionToken),
+        metadata,
+        now,
+        expiresAt: new Date(now.getTime() + sessionLifetimeMs),
+      });
+      const refreshedUser = await repository.findUserById(trx, user.id);
+
+      if (!refreshedUser) {
+        throw new Error("A signed-in user could not be loaded.");
+      }
+
+      return {
+        kind: "success",
+        sessionId,
+        user: toAuthUser(refreshedUser),
+      } as const;
+    });
+
+    if (outcome.kind === "invalid") throw invalidCodeError();
+    if (outcome.kind === "account_disabled") {
+      throw new AppError(403, "account_disabled", "This account is disabled.");
+    }
+    if (outcome.kind === "identity_conflict") {
+      throw new AppError(
+        409,
+        "identity_conflict",
+        "This email is already linked to another account.",
+      );
+    }
+
+    return {
+      user: outcome.user,
+      sessionId: outcome.sessionId,
+      token: sessionToken,
+    };
   }
 
   async beginGoogleOAuth(returnTo: string) {
@@ -112,12 +264,6 @@ export class AuthService {
       oauthState,
       this.dependencies.config.authStateSecret,
     );
-    await this.repository.insertGoogleNonce(
-      this.dependencies.db,
-      hashSessionToken(oauthState.nonce),
-      new Date(),
-      new Date(oauthState.expiresAt),
-    );
 
     return {
       authorizationUrl: provider.createAuthorizationUrl(
@@ -129,35 +275,7 @@ export class AuthService {
     };
   }
 
-  private async recordGoogleFailure<T>(
-    userId: string | null,
-    operation: () => Promise<T>,
-  ): Promise<T> {
-    try {
-      return await operation();
-    } catch (error) {
-      await this.repository.insertSecurityEvent(
-        this.dependencies.db,
-        userId,
-        "google_auth_failed",
-        null,
-      );
-      throw error;
-    }
-  }
-
-  completeGoogleOAuth(
-    code: string,
-    state: string,
-    stateCookie: string | undefined,
-    metadata: SessionMetadata,
-  ) {
-    return this.recordGoogleFailure(null, () =>
-      this.completeGoogleOAuthVerified(code, state, stateCookie, metadata),
-    );
-  }
-
-  private async completeGoogleOAuthVerified(
+  async completeGoogleOAuth(
     code: string,
     state: string,
     stateCookie: string | undefined,
@@ -178,26 +296,9 @@ export class AuthService {
       oauthState.state !== state ||
       oauthState.expiresAt <= Date.now()
     ) {
-      throw new AppError(
-        400,
-        "google_state_invalid",
-        "Google sign-in expired. Please try again.",
-      );
+      throw new AppError(400, "google_state_invalid", "Google sign-in expired. Please try again.");
     }
 
-    if (
-      !(await this.repository.consumeGoogleNonce(
-        this.dependencies.db,
-        hashSessionToken(oauthState.nonce),
-        new Date(),
-      ))
-    ) {
-      throw new AppError(
-        400,
-        "google_state_invalid",
-        "Google sign-in expired. Please try again.",
-      );
-    }
     const identity = await provider.exchangeCode(
       code,
       oauthState.codeVerifier,
@@ -212,15 +313,10 @@ export class AuthService {
     if (!clientId || !this.dependencies.googleProvider) {
       return { clientId: null, nonce: null, expiresInSeconds: 0 };
     }
-    await this.enforceRateLimit(
-      `google-nonce-ip:${ipAddress}`,
-      30,
-      60 * 60 * 1000,
-    );
+    await this.enforceRateLimit(`google-nonce-ip:${ipAddress}`, 30, 60 * 60 * 1000);
     const nonce = createOAuthNonce();
     const now = new Date();
     await this.repository.insertGoogleNonce(
-      this.dependencies.db,
       hashSessionToken(nonce),
       now,
       new Date(now.getTime() + oneTapNonceLifetimeMs),
@@ -232,16 +328,7 @@ export class AuthService {
     };
   }
 
-  signInWithOneTap(
-    credential: string,
-    metadata: SessionMetadata,
-  ): Promise<AuthenticatedSession> {
-    return this.recordGoogleFailure(null, () =>
-      this.signInWithOneTapVerified(credential, metadata),
-    );
-  }
-
-  private async signInWithOneTapVerified(
+  async signInWithOneTap(
     credential: string,
     metadata: SessionMetadata,
   ): Promise<AuthenticatedSession> {
@@ -253,119 +340,85 @@ export class AuthService {
     );
     const identity = await provider.verifyOneTapCredential(credential);
     if (!identity.nonce) {
-      throw new AppError(
-        401,
-        "google_auth_failed",
-        "Google sign-in could not be verified.",
-      );
+      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
     }
-    const result = await this.signInWithGoogleIdentity(
-      identity,
-      metadata,
-      true,
-    );
-    return {
-      user: result.user,
-      sessionId: result.sessionId,
-      token: result.token,
-    };
+    const result = await this.signInWithGoogleIdentity(identity, metadata, true);
+    return { user: result.user, sessionId: result.sessionId, token: result.token };
   }
 
-  linkGoogleIdentity(
-    userId: string,
-    credential: string,
-    ipAddress: string,
-  ): Promise<void> {
-    return this.recordGoogleFailure(userId, () =>
-      this.linkGoogleIdentityVerified(userId, credential, ipAddress),
-    );
-  }
-
-  private async linkGoogleIdentityVerified(
+  async linkGoogleIdentity(
     userId: string,
     credential: string,
     ipAddress: string,
   ): Promise<void> {
     const provider = this.requireGoogleProvider();
-    await this.enforceRateLimit(
-      `google-link-ip:${ipAddress}`,
-      20,
-      15 * 60 * 1000,
-    );
+    await this.enforceRateLimit(`google-link-ip:${ipAddress}`, 20, 15 * 60 * 1000);
     const identity = await provider.verifyOneTapCredential(credential);
     if (!identity.nonce) {
-      throw new AppError(
-        401,
-        "google_auth_failed",
-        "Google sign-in could not be verified.",
-      );
+      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
     }
     const nonce = identity.nonce;
 
     const now = new Date();
-    const result = await this.dependencies.db
-      .transaction()
-      .execute(async (trx) => {
-        const repository = createAuthRepository(trx);
-        const nonceConsumed = await repository.consumeGoogleNonce(
-          trx,
-          hashSessionToken(nonce),
-          now,
-        );
-        if (!nonceConsumed) return "invalid_nonce" as const;
+    const result = await this.dependencies.db.transaction().execute(async (trx) => {
+      const repository = createAuthRepository(trx);
+      const nonceConsumed = await repository.consumeGoogleNonce(
+        trx,
+        hashSessionToken(nonce),
+        now,
+      );
+      if (!nonceConsumed) return "invalid_nonce" as const;
 
-        const user = await repository.findUserByIdForUpdate(trx, userId);
-        if (!user || user.status !== "active")
-          return "account_unavailable" as const;
+      const user = await repository.findUserByIdForUpdate(trx, userId);
+      if (!user || user.status !== "active") return "account_unavailable" as const;
 
-        const linkedIdentity = await repository.findIdentity(
+      const linkedIdentity = await repository.findIdentity(
+        trx,
+        "google",
+        identity.subject,
+      );
+      if (linkedIdentity) {
+        return linkedIdentity.user_id === userId
+          ? ("linked" as const)
+          : ("identity_in_use" as const);
+      }
+
+      const userGoogleIdentity = await repository.findUserProviderIdentity(
+        trx,
+        userId,
+        "google",
+      );
+      if (userGoogleIdentity) return "google_already_linked" as const;
+
+      const inserted = await repository.insertIdentity(
+        trx,
+        userId,
+        "google",
+        identity.subject,
+      );
+      if (!inserted) {
+        const concurrentIdentity = await repository.findIdentity(
           trx,
           "google",
           identity.subject,
         );
-        if (linkedIdentity) {
-          return linkedIdentity.user_id === userId
-            ? ("linked" as const)
-            : ("identity_in_use" as const);
-        }
+        return concurrentIdentity?.user_id === userId
+          ? ("linked" as const)
+          : ("identity_in_use" as const);
+      }
 
-        const inserted = await repository.insertIdentity(
-          trx,
-          userId,
-          "google",
-          identity.subject,
-        );
-        if (!inserted) {
-          const concurrentIdentity = await repository.findIdentity(
-            trx,
-            "google",
-            identity.subject,
-          );
-          return concurrentIdentity?.user_id === userId
-            ? ("linked" as const)
-            : ("identity_in_use" as const);
-        }
-
-        await identityRepository(trx).audit(userId, "identity_linked");
-        return "linked" as const;
-      });
+      return "linked" as const;
+    });
 
     if (result === "invalid_nonce") {
-      throw new AppError(
-        401,
-        "google_auth_failed",
-        "Google sign-in could not be verified.",
-      );
+      console.log("Jay Jay Shree Dnyanoba Mauli TUkaram");
+      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
     }
     if (result === "account_unavailable") {
       throw new AppError(401, "unauthorized", "Sign in to link an account.");
     }
-    if (result === "identity_in_use") {
-      throw new AppError(
-        409,
-        "google_identity_conflict",
-        "A Google account is already linked.",
-      );
+    if (result === "identity_in_use" || result === "google_already_linked") {
+      throw new AppError(409, "google_identity_conflict", "A Google account is already linked.");
     }
   }
 
@@ -373,7 +426,6 @@ export class AuthService {
     if (!token) return null;
     const now = new Date();
     const session = await this.repository.findActiveSession(
-      this.dependencies.db,
       hashSessionToken(token),
       now,
     );
@@ -384,33 +436,18 @@ export class AuthService {
       session.user_id,
     );
     if (!user || user.status !== "active") {
-      await this.repository.revokeSessionByToken(
-        this.dependencies.db,
-        hashSessionToken(token),
-        now,
-      );
+      await this.repository.revokeSessionByToken(hashSessionToken(token), now);
       return null;
     }
 
     if (now.getTime() - session.last_active_at.getTime() >= 5 * 60 * 1000) {
-      await this.repository.updateSessionActivity(
-        this.dependencies.db,
-        session.id,
-        now,
-      );
+      await this.repository.updateSessionActivity(session.id, now);
     }
     return { user: toAuthUser(user), sessionId: session.id };
   }
 
-  async listSessions(
-    userId: string,
-    currentSessionId: string,
-  ): Promise<AuthSession[]> {
-    const sessions = await this.repository.listSessions(
-      this.dependencies.db,
-      userId,
-      new Date(),
-    );
+  async listSessions(userId: string, currentSessionId: string): Promise<AuthSession[]> {
+    const sessions = await this.repository.listSessions(userId, new Date());
     return sessions.map((session) => ({
       ...session,
       current: session.id === currentSessionId,
@@ -418,37 +455,24 @@ export class AuthService {
   }
 
   async revokeSession(userId: string, sessionId: string) {
-    await this.dependencies.db
-      .transaction()
-      .execute((trx) =>
-        this.repository.revokeSession(trx, userId, sessionId, new Date()),
-      );
+    await this.repository.revokeSession(userId, sessionId, new Date());
   }
 
   async revokeAllSessions(userId: string) {
-    await this.dependencies.db
-      .transaction()
-      .execute((trx) =>
-        this.repository.revokeAllSessions(trx, userId, new Date()),
-      );
+    await this.repository.revokeAllSessions(userId, new Date());
   }
 
   async logout(token: string | undefined) {
     if (token) {
-      await this.dependencies.db
-        .transaction()
-        .execute((trx) =>
-          this.repository.revokeSessionByToken(
-            trx,
-            hashSessionToken(token),
-            new Date(),
-          ),
-        );
+      await this.repository.revokeSessionByToken(
+        hashSessionToken(token),
+        new Date(),
+      );
     }
   }
 
   async cleanupExpiredData() {
-    await this.repository.cleanupExpiredData(this.dependencies.db, new Date());
+    await this.repository.cleanupExpiredData(new Date());
   }
 
   googleOAuthReturnTo(stateCookie: string | undefined): string {
@@ -468,135 +492,102 @@ export class AuthService {
   ): Promise<GoogleSignInResult> {
     const now = new Date();
     const token = createSessionToken();
-    const outcome = await this.dependencies.db
-      .transaction()
-      .execute(async (trx) => {
-        const repository = createAuthRepository(trx);
+    const outcome = await this.dependencies.db.transaction().execute(async (trx) => {
+      const repository = createAuthRepository(trx);
 
-        if (consumeNonce) {
-          if (!identity.nonce) return { kind: "invalid_nonce" } as const;
-          const consumed = await repository.consumeGoogleNonce(
-            trx,
-            hashSessionToken(identity.nonce),
-            now,
-          );
-          if (!consumed) return { kind: "invalid_nonce" } as const;
+      if (consumeNonce) {
+        if (!identity.nonce) return { kind: "invalid_nonce" } as const;
+        const consumed = await repository.consumeGoogleNonce(
+          trx,
+          hashSessionToken(identity.nonce),
+          now,
+        );
+        if (!consumed) return { kind: "invalid_nonce" } as const;
+      }
+
+      let linkedIdentity = await repository.findIdentity(
+        trx,
+        "google",
+        identity.subject,
+      );
+      let user: UserRecord | undefined;
+
+      if (linkedIdentity) {
+        user = await repository.findUserById(trx, linkedIdentity.user_id);
+      } else {
+        const existingEmailUser = await repository.findUserByEmail(
+          trx,
+          identity.email,
+        );
+        if (existingEmailUser) {
+          return { kind: "identity_link_required" } as const;
         }
 
-        let linkedIdentity = await repository.findIdentity(
-          trx,
-          "google",
-          identity.subject,
-        );
-        let user: UserRecord | undefined;
+        const insertedUser = await repository.insertUser(trx, {
+          email: identity.email,
+          emailVerifiedAt: now,
+          name: identity.name,
+          image: identity.image,
+        });
 
-        if (linkedIdentity) {
-          user = await repository.findUserById(trx, linkedIdentity.user_id);
-        } else {
-          const existingEmailUser = await repository.findUserByEmail(
+        if (!insertedUser) {
+          linkedIdentity = await repository.findIdentity(
             trx,
-            identity.email,
+            "google",
+            identity.subject,
           );
-          if (existingEmailUser) {
+          if (!linkedIdentity) {
             return { kind: "identity_link_required" } as const;
           }
+          user = await repository.findUserById(trx, linkedIdentity.user_id);
+        } else {
+          const insertedIdentity = await repository.insertIdentity(
+            trx,
+            insertedUser.id,
+            "google",
+            identity.subject,
+          );
 
-          const insertedUser = await repository.insertUser(trx, {
-            email: identity.email,
-            emailVerifiedAt: now,
-            name: identity.name,
-            image: identity.image,
-          });
-
-          if (!insertedUser) {
-            linkedIdentity = await repository.findIdentity(
+          if (!insertedIdentity) {
+            const concurrentIdentity = await repository.findIdentity(
               trx,
               "google",
               identity.subject,
             );
-            if (!linkedIdentity) {
-              return { kind: "identity_link_required" } as const;
+            await repository.deleteUser(trx, insertedUser.id);
+            if (!concurrentIdentity) {
+              throw new Error("A concurrent Google identity could not be loaded.");
             }
-            user = await repository.findUserById(trx, linkedIdentity.user_id);
+            user = await repository.findUserById(trx, concurrentIdentity.user_id);
           } else {
-            const insertedIdentity = await repository.insertIdentity(
-              trx,
-              insertedUser.id,
-              "google",
-              identity.subject,
-            );
-
-            if (!insertedIdentity) {
-              const concurrentIdentity = await repository.findIdentity(
-                trx,
-                "google",
-                identity.subject,
-              );
-              await repository.deleteUser(trx, insertedUser.id);
-              if (!concurrentIdentity) {
-                throw new Error(
-                  "A concurrent Google identity could not be loaded.",
-                );
-              }
-              user = await repository.findUserById(
-                trx,
-                concurrentIdentity.user_id,
-              );
-            } else {
-              user = await repository.findUserById(trx, insertedUser.id);
-              await repository.insertSecurityEvent(
-                trx,
-                insertedUser.id,
-                "account_created",
-                insertedIdentity.id,
-              );
-            }
+            user = await repository.findUserById(trx, insertedUser.id);
           }
         }
+      }
 
-        if (!user)
-          throw new Error("A Google-authenticated user could not be loaded.");
-        user = await repository.findUserByIdForUpdate(trx, user.id);
-        if (!user) return { kind: "account_disabled" } as const;
-        const authorizedIdentity = await repository.findIdentity(
-          trx,
-          "google",
-          identity.subject,
-        );
-        if (
-          !authorizedIdentity ||
-          authorizedIdentity.user_id !== user.id ||
-          (linkedIdentity && authorizedIdentity.id !== linkedIdentity.id)
-        )
-          return { kind: "invalid_nonce" } as const;
-        if (user.status !== "active")
-          return { kind: "account_disabled" } as const;
+      if (!user) throw new Error("A Google-authenticated user could not be loaded.");
+      if (user.status !== "active") return { kind: "account_disabled" } as const;
 
-        await repository.updateLoginTime(trx, user.id, now);
-        const sessionId = await repository.createSession(trx, {
-          userId: user.id,
-          tokenHash: hashSessionToken(token),
-          metadata,
-          now,
-          expiresAt: new Date(now.getTime() + sessionLifetimeMs),
-        });
-        const refreshedUser = await repository.findUserById(trx, user.id);
-        if (!refreshedUser)
-          throw new Error("A signed-in user could not be loaded.");
-
-        return {
-          kind: "success",
-          sessionId,
-          user: toAuthUser(refreshedUser),
-        } as const;
+      await repository.updateLoginTime(trx, user.id, now);
+      const sessionId = await repository.createSession(trx, {
+        userId: user.id,
+        tokenHash: hashSessionToken(token),
+        metadata,
+        now,
+        expiresAt: new Date(now.getTime() + sessionLifetimeMs),
       });
+      const refreshedUser = await repository.findUserById(trx, user.id);
+      if (!refreshedUser) throw new Error("A signed-in user could not be loaded.");
+
+      return {
+        kind: "success",
+        sessionId,
+        user: toAuthUser(refreshedUser),
+      } as const;
+    });
 
     if (outcome.kind === "invalid_nonce") {
-      throw new AppError(
-        401,
-        "google_auth_failed",
-        "Google sign-in could not be verified.",
-      );
+      throw new AppError(401, "google_auth_failed", "Google sign-in could not be verified.");
     }
     if (outcome.kind === "identity_link_required") {
       throw new AppError(
@@ -617,11 +608,7 @@ export class AuthService {
     };
   }
 
-  private async enforceRateLimit(
-    key: string,
-    maxRequests: number,
-    windowMs: number,
-  ) {
+  private async enforceRateLimit(key: string, maxRequests: number, windowMs: number) {
     const now = new Date();
     const bucketHash = hashRateLimitKey(
       key,
@@ -634,8 +621,7 @@ export class AuthService {
       maxRequests,
     );
     const entry = result.rows[0];
-    if (!entry)
-      throw new Error("The authentication rate limit could not be checked.");
+    if (!entry) throw new Error("The authentication rate limit could not be checked.");
     if (entry.request_count > maxRequests) {
       const retryAfterSeconds = Math.max(
         1,
@@ -664,11 +650,7 @@ export class AuthService {
   }
 
   private validateReturnTo(candidate: string): string {
-    if (
-      !candidate.startsWith("/") ||
-      candidate.startsWith("//") ||
-      candidate.includes("\\")
-    ) {
+    if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
       return "/";
     }
     try {
@@ -680,4 +662,8 @@ export class AuthService {
       return "/";
     }
   }
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
 }

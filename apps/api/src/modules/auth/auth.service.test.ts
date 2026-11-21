@@ -18,7 +18,6 @@ import { createAuthRepository, type SessionMetadata } from "./auth.repository";
 
 const testDatabaseUrl = process.env.AUTH_TEST_DATABASE_URL;
 const testConfig: AppConfig = {
-  appName: "Vyasen",
   apiHost: "127.0.0.1",
   apiPort: 4000,
   apiPublicOrigin: "http://localhost:4000",
@@ -26,18 +25,16 @@ const testConfig: AppConfig = {
   authRateLimitSecret: "test-rate-secret-value-longer-than-32-characters",
   authStateSecret: "test-state-secret-value-longer-than-32-characters",
   databaseUrl:
-    testDatabaseUrl ?? "postgres://test:test@127.0.0.1:5432/vyasen_auth_test",
+    testDatabaseUrl ?? "postgres://test:test@127.0.0.1:5432/school_sms_auth_test",
   googleClientId: null,
   googleClientSecret: null,
   googleRedirectUri: "http://localhost:4000/api/v1/auth/google/callback",
   nodeEnv: "test",
-  oauthStateCookieName: "vyasen_google_oauth",
   sessionCookieDomain: undefined,
-  sessionCookieName: "vyasen_session",
+  sessionCookieName: "school_sms_session",
   sessionCookieSameSite: "lax",
   sessionCookieSecure: false,
   smtp: null,
-  sms: null,
   trustProxy: false,
   webOrigins: ["http://localhost:3000"],
 };
@@ -66,10 +63,10 @@ test(
     const url = new URL(testDatabaseUrl);
     if (
       !["127.0.0.1", "localhost", "::1"].includes(url.hostname) ||
-      url.pathname !== "/vyasen_auth_test"
+      url.pathname !== "/school_sms_auth_test"
     ) {
       throw new Error(
-        "AUTH_TEST_DATABASE_URL must point to the local vyasen_auth_test database.",
+        "AUTH_TEST_DATABASE_URL must point to the local school_sms_auth_test database.",
       );
     }
 
@@ -86,12 +83,9 @@ test(
       const migration = await migrator.migrateToLatest();
       if (migration.error) throw migration.error;
 
-      await db.deleteFrom("auth_challenges").execute();
+      await db.deleteFrom("email_verification_codes").execute();
       await db.deleteFrom("auth_rate_limits").execute();
       await db.deleteFrom("auth_nonces").execute();
-      await db.deleteFrom("user_contacts").execute();
-      await db.deleteFrom("auth_identities").execute();
-      await db.deleteFrom("personal_profiles").execute();
       await db.deleteFrom("users").execute();
 
       const emailProvider = new CapturingEmailProvider();
@@ -117,12 +111,8 @@ test(
       const verify = () =>
         service.verifyEmailCode(challenge.challengeId, email, code, metadata);
       const attempts = await Promise.allSettled([verify(), verify()]);
-      const successful = attempts.filter(
-        (attempt) => attempt.status === "fulfilled",
-      );
-      const rejected = attempts.filter(
-        (attempt) => attempt.status === "rejected",
-      );
+      const successful = attempts.filter((attempt) => attempt.status === "fulfilled");
+      const rejected = attempts.filter((attempt) => attempt.status === "rejected");
 
       assert.equal(successful.length, 1);
       assert.equal(rejected.length, 1);
@@ -132,20 +122,12 @@ test(
           rejected[0].reason.code === "invalid_verification_code",
       );
 
-      const identity = await db
-        .selectFrom("auth_identities")
-        .select(["user_id", "provider", "provider_subject", "verified_at"])
-        .where("provider", "=", "email")
-        .where("provider_subject", "=", email)
-        .executeTakeFirstOrThrow();
-      assert.equal(identity.verified_at instanceof Date, true);
-
       const user = await db
         .selectFrom("users")
-        .select(["id", "status", "last_login_at"])
-        .where("id", "=", identity.user_id)
+        .select(["id", "email", "email_verified_at"])
+        .where("email", "=", email)
         .executeTakeFirstOrThrow();
-      assert.equal(user.last_login_at instanceof Date, true);
+      assert.equal(user.email_verified_at instanceof Date, true);
 
       const firstSession = await db
         .selectFrom("sessions")
@@ -153,20 +135,18 @@ test(
         .where("user_id", "=", user.id)
         .executeTakeFirstOrThrow();
 
-      await Promise.all(
-        Array.from({ length: 6 }, async (_, index) => {
-          const now = new Date(Date.now() + index * 1000);
-          await db.transaction().execute(async (trx) => {
-            await createAuthRepository(trx).createSession(trx, {
-              userId: user.id,
-              tokenHash: hashSessionToken(createSessionToken()),
-              metadata,
-              now,
-              expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-            });
+      for (let index = 0; index < 6; index += 1) {
+        const now = new Date(Date.now() + index * 1000);
+        await db.transaction().execute(async (trx) => {
+          await createAuthRepository(trx).createSession(trx, {
+            userId: user.id,
+            tokenHash: hashSessionToken(createSessionToken()),
+            metadata,
+            now,
+            expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
           });
-        }),
-      );
+        });
+      }
 
       const activeSessions = await db
         .selectFrom("sessions")
@@ -182,28 +162,6 @@ test(
         .executeTakeFirstOrThrow();
 
       assert.equal(activeSessions.length, 5);
-      const capEvents = await db
-        .selectFrom("auth_security_events")
-        .select("id")
-        .where("event_type", "=", "sessions_revoked_limit")
-        .execute();
-      assert.ok(capEvents.length > 0);
-      await Promise.all(
-        activeSessions.map((session) =>
-          service.revokeSession(user.id, session.id),
-        ),
-      );
-      assert.equal(
-        (
-          await db
-            .selectFrom("sessions")
-            .select("id")
-            .where("user_id", "=", user.id)
-            .where("revoked_at", "is", null)
-            .execute()
-        ).length,
-        0,
-      );
       assert.ok(originalSession.revoked_at instanceof Date);
     } finally {
       await db.destroy();

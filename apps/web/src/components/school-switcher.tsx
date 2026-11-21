@@ -1,4 +1,4 @@
-import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, School } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const workspaces = ["Greenwood Academy", "Cedar Grove College"];
+const schools = ["Greenwood Academy", "Cedar Grove School"];
 
-export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
-  const [selectedWorkspace, setSelectedWorkspace] = useState(workspaces[0]);
+export function SchoolSwitcher({ compact = false }: { compact?: boolean }) {
+  const [selectedSchool, setSelectedSchool] = useState(schools[0]);
 
   return (
     <DropdownMenu>
@@ -27,19 +27,19 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
               ? "size-10 shrink-0"
               : "h-auto max-w-64 justify-start gap-3 px-2 py-1.5 text-left"
           }
-          aria-label={`Switch institution. Current institution: ${selectedWorkspace}`}
+          aria-label={`Switch school. Current school: ${selectedSchool}`}
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
-            <Building2 size={18} />
+            <School size={18} />
           </span>
           <span
             className={compact ? "sr-only" : "hidden min-w-0 flex-1 sm:block"}
           >
             <span className="block truncate text-sm font-semibold">
-              {selectedWorkspace}
+              {selectedSchool}
             </span>
             <span className="block text-xs text-muted-foreground">
-              Institution workspace
+              School workspace
             </span>
           </span>
           {!compact && (
@@ -51,15 +51,15 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64">
-        <DropdownMenuLabel>Your institutions</DropdownMenuLabel>
-        {workspaces.map((workspace) => (
+        <DropdownMenuLabel>Your schools</DropdownMenuLabel>
+        {schools.map((school) => (
           <DropdownMenuItem
-            key={workspace}
-            onSelect={() => setSelectedWorkspace(workspace)}
+            key={school}
+            onSelect={() => setSelectedSchool(school)}
           >
-            <Building2 size={16} className="text-muted-foreground" />
-            <span className="flex-1">{workspace}</span>
-            {selectedWorkspace === workspace && (
+            <School size={16} className="text-muted-foreground" />
+            <span className="flex-1">{school}</span>
+            {selectedSchool === school && (
               <Check size={15} className="text-accent" />
             )}
           </DropdownMenuItem>
@@ -67,7 +67,7 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled>
           <Plus size={16} />
-          Add or join an institution
+          Add or join a school
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

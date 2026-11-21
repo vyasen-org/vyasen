@@ -12,23 +12,10 @@ import { createDatabase } from "@vyasen/database";
 import type { AppConfig } from "./config";
 import { AppError } from "./errors";
 import { AuthService } from "./modules/auth/auth.service";
-import {
-  EmailProvider,
-  GoogleProvider,
-  SmsProvider,
-} from "./modules/auth/auth.provider";
+import { EmailProvider, GoogleProvider } from "./modules/auth/auth.provider";
 import authRoutes from "./modules/auth/auth.routes";
-import identityRoutes from "./modules/auth/identity.routes";
-import { IdentityService } from "./modules/auth/identity.service";
 
-export async function buildApp(
-  config: AppConfig,
-  providers: {
-    email?: EmailProvider;
-    sms?: SmsProvider;
-    google?: GoogleProvider | null;
-  } = {},
-): Promise<FastifyInstance> {
+export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({
     bodyLimit: 16 * 1024,
     logger: {
@@ -44,25 +31,20 @@ export async function buildApp(
   });
   const db = createDatabase(config.databaseUrl);
   const googleProvider =
-    providers.google !== undefined
-      ? providers.google
-      : config.googleClientId && config.googleClientSecret
-        ? new GoogleProvider(
-            config.googleClientId,
-            config.googleClientSecret,
-            config.googleRedirectUri,
-          )
-        : null;
-  const emailProvider =
-    providers.email ?? new EmailProvider(config.smtp, config.appName);
-  const smsProvider =
-    providers.sms ?? new SmsProvider(config.sms, config.appName);
+    config.googleClientId && config.googleClientSecret
+      ? new GoogleProvider(
+          config.googleClientId,
+          config.googleClientSecret,
+          config.googleRedirectUri,
+        )
+      : null;
   const authService = new AuthService({
     db,
     config,
-    emailProvider,
+    emailProvider: new EmailProvider(config.smtp, (failure) => {
+      app.log.error(failure, "Sign-in email delivery failed.");
+    }),
     googleProvider,
-    smsProvider,
   });
 
   app.decorateRequest("authContext", null);
@@ -152,18 +134,6 @@ export async function buildApp(
     prefix: "/api/v1/auth",
     service: authService,
     config,
-  });
-  await app.register(identityRoutes, {
-    prefix: "/api/v1/auth",
-    auth: authService,
-    config,
-    service: new IdentityService(db, config, emailProvider, smsProvider),
-  });
-
-  // Health check endpoint — used by Render, monitoring tools, and the CI/CD
-  // pipeline to verify the API has started successfully after a deploy.
-  app.get("/api/v1/health", async (_request, reply) => {
-    return reply.code(200).send({ status: "ok" });
   });
 
   app.addHook("onClose", async () => {

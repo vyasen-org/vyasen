@@ -18,47 +18,15 @@ export const authEmailCodeVerificationSchema = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .regex(/^\+[1-9]\d{7,14}$/, "Enter a valid international phone number.");
-
-export const authPhoneCodeRequestSchema = z.object({
-  phone: phoneSchema,
-});
-
-export const authPhoneCodeResponseSchema = z.object({
-  challengeId: z.uuid(),
-  expiresInSeconds: z.number().int().positive(),
-  message: z.string(),
-});
-
-export const authPhoneCodeVerificationSchema = z.object({
-  challengeId: z.uuid(),
-  phone: phoneSchema,
-  code: z.string().regex(/^\d{6}$/),
-});
-
-export const authPasswordSignInSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(8).max(256),
-});
-
-export const authPasswordSignupSchema = z.strictObject({
-  email: emailSchema,
-  proof: z.string().min(32).max(128),
-  password: z.string().min(8).max(256),
-});
-
 export const authGoogleCredentialSchema = z.object({
   credential: z.string().min(1).max(8192),
 });
 
 export const authUserSchema = z.object({
   id: z.uuid(),
-  email: z.union([emailSchema, z.literal("")]),
+  email: emailSchema,
   emailVerifiedAt: z.iso.datetime().nullable(),
-  name: z.string().max(302).nullable(),
+  name: z.string().max(200).nullable(),
   image: z.string().url().nullable(),
   createdAt: z.iso.datetime(),
 });
@@ -123,14 +91,9 @@ export type AuthEmailCodeResponse = z.infer<typeof authEmailCodeResponseSchema>;
 export type AuthEmailCodeVerification = z.infer<
   typeof authEmailCodeVerificationSchema
 >;
-export type AuthPhoneCodeRequest = z.infer<typeof authPhoneCodeRequestSchema>;
-export type AuthPhoneCodeResponse = z.infer<typeof authPhoneCodeResponseSchema>;
-export type AuthPhoneCodeVerification = z.infer<
-  typeof authPhoneCodeVerificationSchema
+export type AuthGoogleCredential = z.infer<
+  typeof authGoogleCredentialSchema
 >;
-export type AuthPasswordSignIn = z.infer<typeof authPasswordSignInSchema>;
-export type AuthPasswordSignup = z.infer<typeof authPasswordSignupSchema>;
-export type AuthGoogleCredential = z.infer<typeof authGoogleCredentialSchema>;
 export type AuthGoogleNonceResponse = z.infer<
   typeof authGoogleNonceResponseSchema
 >;
